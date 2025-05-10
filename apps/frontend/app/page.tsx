@@ -1,10 +1,25 @@
-import { Button } from "@/components/ui/button";
-
+import { TemplateButtons } from "@/components/TemplateButtons";
+import Appbar from "../components/Appbar";
+import Prompt from "../components/Prompt";
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <Button>Click me</Button>
+    <div className="p-4">
+      <Appbar />
+      <div className="max-w-4xl mx-auto p-32">
+        <div className="text-2xl font-bold text-center">
+          What do you want to build?
+        </div>
+        <div className="text-sm text-muted-foreground text-center p-2">
+          Prompt, click generate and watch your app come to life.
+        </div>
+        <div className="p-4">
+          <Prompt />
+        </div>
+        <TemplateButtons />
+      </div>
+      
+      
     </div>
   );
 }
