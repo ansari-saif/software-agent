@@ -15,21 +15,23 @@ export default function ProjectHistorySidebar() {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const { getToken } = useAuth();
+  const prevOpen = useRef(false);
 
+  const fetchProjects = async () => {
+    const token = await getToken();
+    const projectsResult = await axios.post(
+      "http://localhost:8080/projects",
+      {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  setProjects(projectsResult.data);
+};
   useEffect(() => {
-    const fetchProjects = async () => {
-      const token = await getToken();
-      const projectsResult = await axios.post(
-        "http://localhost:8080/projects",
-        {},
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-    setProjects(projectsResult.data);
-  };
+    
   fetchProjects();
   }, []);
 
@@ -50,6 +52,13 @@ export default function ProjectHistorySidebar() {
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
+
+  useEffect(() => {
+    if (open && !prevOpen.current) {
+      fetchProjects();
+    }
+    prevOpen.current = open;
+  }, [open]);
 
   return (
     <div
