@@ -79,21 +79,25 @@ export default function ProjectHistorySidebar() {
           ×
         </button>
       </div>
-      <ul className="p-4 space-y-2">
-        {projects.map((project) => (
-          <motion.li
-            key={project?.id}
-            className="p-2 rounded cursor-pointer flex items-center gap-2"
-            whileHover={{
-              scale: 1.05,
-              backgroundColor: "rgba(255,255,255,0.06)",
-            }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          >
-            <FileText className="w-4 h-4" />
-            {project?.description}
-          </motion.li>
-        ))}
+      <ul className="p-4 space-y-2 overflow-y-auto max-h-[calc(100vh-64px)] scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+        {projects.length === 0 ? (
+          <li className="flex flex-col items-center justify-center h-40 text-gray-400 select-none">
+            <FileText className="w-8 h-8 mb-2 opacity-60" />
+            <span className="text-base font-medium">No projects found.</span>
+          </li>
+        ) : (
+          projects.map((project) => (
+            <motion.li
+              key={project.id}
+              className="p-2 rounded cursor-pointer flex items-center gap-2"
+              whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.06)" }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <FileText className="w-4 h-4" />
+              {project.description}
+            </motion.li>
+          ))
+        )}
       </ul>
     </div>
   );
