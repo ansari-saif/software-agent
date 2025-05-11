@@ -9,6 +9,22 @@ import React, { useState } from "react";
 const Prompt = () => {
   const [prompt, setPrompt] = useState("");
   const { getToken } = useAuth();
+
+  const handleSubmit = async () => {
+    const token = await getToken();
+    const response = await axios.post("http://localhost:8080/project", {
+      prompt: prompt,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  console.log(response.data);
+  setPrompt("");
+  };
+
   return (
     <div>
       <Textarea
@@ -16,23 +32,16 @@ const Prompt = () => {
         placeholder="Create a chess application ..."
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit();
+          }
+        }}
       />
       <div className="flex justify-end p-2">
         <Button
-
-          onClick={async () => {
-            const token = await getToken();
-            const response = await axios.post("http://localhost:8080/project", {
-              prompt: prompt,
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-          console.log(response.data);
-        }}
+          onClick={handleSubmit}
         >
           <Send />
         </Button>
