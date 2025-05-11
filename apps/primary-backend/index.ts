@@ -22,9 +22,10 @@ app.post("/project", authMiddleware, async (req, res) => {
 
 app.post("/projects", authMiddleware, async (req, res) => {
   const userId = req.userId!;
-  const projects = await prismaClient.project.findFirst({
+  const projects = await prismaClient.project.findMany({
     where: { userId },
   });
+  
   res.json(projects);
 });
 app.listen(8080, () => {

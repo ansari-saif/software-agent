@@ -3,17 +3,35 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Folder, FileText } from "lucide-react";
 import { motion } from "framer-motion";
-
-const mockProjects = [
-  { id: 1, name: "Chess App" },
-  { id: 2, name: "Todo App" },
-  { id: 3, name: "Weather App" },
-  { id: 4, name: "Docs App" },
-];
-
+import axios from "axios";
+import { useAuth } from "@clerk/nextjs";
+type Project = {
+  id: string;
+  description: string;
+  createdAt: string;
+};
 export default function ProjectHistorySidebar() {
   const [open, setOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      const token = await getToken();
+      const projectsResult = await axios.post(
+        "http://localhost:8080/projects",
+        {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    setProjects(projectsResult.data);
+  };
+  fetchProjects();
+  }, []);
 
   // Open sidebar when mouse is near the left edge
   useEffect(() => {
@@ -22,7 +40,9 @@ export default function ProjectHistorySidebar() {
         setOpen(true);
       } else if (
         sidebarRef.current &&
-        !sidebarRef.current.contains(document.elementFromPoint(e.clientX, e.clientY) as Node)
+        !sidebarRef.current.contains(
+          document.elementFromPoint(e.clientX, e.clientY) as Node
+        )
       ) {
         setOpen(false);
       }
@@ -51,18 +71,21 @@ export default function ProjectHistorySidebar() {
         </button>
       </div>
       <ul className="p-4 space-y-2">
-        {mockProjects.map((project) => (
+        {projects.map((project) => (
           <motion.li
-            key={project.id}
+            key={project?.id}
             className="p-2 rounded cursor-pointer flex items-center gap-2"
-            whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.06)" }}
+            whileHover={{
+              scale: 1.05,
+              backgroundColor: "rgba(255,255,255,0.06)",
+            }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
           >
             <FileText className="w-4 h-4" />
-            {project.name}
+            {project?.description}
           </motion.li>
         ))}
       </ul>
     </div>
   );
-} 
+}
