@@ -1,10 +1,11 @@
-
+import ProjectHistorySidebar from "../components/ProjectHistorySidebar";
 import Appbar from "../components/Appbar";
 import Prompt from "../components/Prompt";
 
 export default function Home() {
   return (
     <div className="p-4 min-h-screen bg-[rgb(10,10,10)]">
+      <ProjectHistorySidebar />
       <Appbar />
       <div className="max-w-4xl mx-auto p-32">
         <div className="text-2xl font-bold text-center text-white">
