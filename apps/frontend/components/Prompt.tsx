@@ -12,6 +12,7 @@ const Prompt = () => {
   return (
     <div>
       <Textarea
+        className="bg-gray-900 text-white"
         placeholder="Create a chess application ..."
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}

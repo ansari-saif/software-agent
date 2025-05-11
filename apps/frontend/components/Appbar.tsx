@@ -9,7 +9,7 @@ import {
 const Appbar = () => {
   return (
     <div className="flex justify-between items-center p-4">
-      <div>Software Agent</div>
+      <div className="text-2xl font-bold text-white">Software Agent</div>
       <div>
         <SignedOut>
           <SignInButton />
