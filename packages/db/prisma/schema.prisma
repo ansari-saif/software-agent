@@ -13,6 +13,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PromptType {
+  USER
+  SYSTEM
+}
+
+enum ProjectType {
+  REACT_NATIVE
+  NEXTJS
+  REACT
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -27,12 +38,14 @@ model Project {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   prompts     Prompt[]
+  type        ProjectType @default(NEXTJS)
   userId      String
 }
 
 model Prompt {
   id        String   @id @default(uuid())
-  prompt    String
+  content    String
+  type       PromptType
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   project   Project @relation(fields: [projectId], references: [id])
