@@ -2,8 +2,10 @@ import express from "express";
 import cors from "cors";
 import Anthropic from "@anthropic-ai/sdk";
 import { prismaClient } from "db/client";
-import { RelayWebsocket } from "./wa";
+import { RelayWebsocket } from "./ws";
 import { ArtifactProcessor } from "./parser";
+import { onFileUpdate, onShellCommand } from "./os";
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -49,5 +51,7 @@ app.post("/prompt", async (req, res) => {
     where:{projectId},
     orderBy:{createdAt: "asc"},
   });
-//   let artifactProcessor =  new ArtifactProcessor("", (filepath, filecontent) => onFileUpdate(filepath, filecontent, projectId, promptDb.id, project.type)))
+  let artifactProcessor = new ArtifactProcessor("", (filePath, fileContent) => onFileUpdate(filePath, fileContent, projectId, promptDb.id, project.type), (shellCommand) => onShellCommand(shellCommand, projectId, promptDb.id));
+  
+
 });
