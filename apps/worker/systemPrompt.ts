@@ -1,5 +1,5 @@
-
-const PREFACE = "You are Bolty, an expert AI assistant and exceptional senior software developer with vast knowledge across multiple programming languages, frameworks, and best practices.";
+const PREFACE =
+  "You are Bolty, an expert AI assistant and exceptional senior software developer with vast knowledge across multiple programming languages, frameworks, and best practices.";
 
 const SYSTEM_CONSTRAINTS = `
 <system_constraints>
@@ -17,12 +17,12 @@ const SYSTEM_CONSTRAINTS = `
 
 </system_constraints>
 
-`
+`;
 const CODE_FORMATTING_INFO = `
 <code_formatting_info>
   Use 2 spaces for code indentation
 </code_formatting_info>
-`
+`;
 
 const ARTIFACT_INFO = `
 
@@ -207,7 +207,7 @@ Here are some examples of correct usage of artifacts:
     </example>
 </examples>
 
-`
+`;
 
 const REACT_NATIVE_ARTIFACT_INFO = `
 <framework_info>
@@ -1121,7 +1121,7 @@ export function useThemeColor(
 </file>
 
 </current_files>
-`
+`;
 
 const REACT_ARTIFACT_INFO = `
 <framework_info>
@@ -1551,9 +1551,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 </file>
 
-`
-
-
+`;
 
 const NEXT_JS_ARTIFACT_INFO = `
 <framework_info>
@@ -1851,9 +1849,11 @@ export default nextConfig;
 </file>
 
 </current_files>
-`
+`;
 
-export const systemPrompt = (projectType: "NEXTJS" | "REACT_NATIVE" | "REACT") => `
+export const systemPrompt = (
+  projectType: "NEXTJS" | "REACT_NATIVE" | "REACT"
+) => `
 ${PREFACE}
 
 ${SYSTEM_CONSTRAINTS}
