@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import Anthropic from "@anthropic-ai/sdk";
 import { prismaClient } from "db/client";
-import { RelayWebsocket } from "./ws";
+
 import { ArtifactProcessor } from "./parser";
 import { onFileUpdate, onPromptEnd, onShellCommand } from "./os";
 import { systemPrompt } from "./systemPrompt";
@@ -30,24 +30,7 @@ app.post("/prompt", async (req, res) => {
       type: "USER",
     },
   });
-  const { diff } = await RelayWebsocket.getInstance().sendAndAwaitResponse(
-    {
-      event: "admin",
-      data: {
-        type: "prompt-start",
-      },
-    },
-    promptDb.id
-  );
-  if (diff){
-    await prismaClient.prompt.create({
-        data:{
-            content:`<bolt-user-diff>${diff}</bolt-user-diff>\n\n${prompt}`,
-            projectId,
-            type: "USER",
-        }
-    })
-  }
+
   const allPrompts = await prismaClient.prompt.findMany({
     where:{projectId},
     orderBy:{createdAt: "asc"},
