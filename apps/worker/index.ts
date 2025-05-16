@@ -32,49 +32,54 @@ app.post("/prompt", async (req, res) => {
   });
 
   const allPrompts = await prismaClient.prompt.findMany({
-    where:{projectId},
-    orderBy:{createdAt: "asc"},
+    where: { projectId },
+    orderBy: { createdAt: "asc" },
   });
-  let artifactProcessor = new ArtifactProcessor("", (filePath, fileContent) => onFileUpdate(filePath, fileContent, projectId, promptDb.id, project.type), (shellCommand) => onShellCommand(shellCommand, projectId, promptDb.id));
+  let artifactProcessor = new ArtifactProcessor(
+    "",
+    (filePath, fileContent) =>
+      onFileUpdate(filePath, fileContent, projectId, promptDb.id, project.type),
+    (shellCommand) => onShellCommand(shellCommand, projectId, promptDb.id)
+  );
   let artifact = "";
 
-  let response = client.messages.stream({
-    messages: allPrompts.map((p: any) => ({
-      role: p.type === "USER" ? "user" : "assistant",
-      content: p.content,
-    })),
-    system: systemPrompt(project.type),
-    model: "claude-3-7-sonnet-20250219",
-    max_tokens: 8000,
-  }).on('text', (text) => {
-    artifactProcessor.append(text);
-    artifactProcessor.parse();
-    artifact += text;
-  })
-  .on('finalMessage', async (message) => {
-    console.log("done!");
-    await prismaClient.prompt.create({
-      data: {
-        content: artifact,
-        projectId,
-        type: "SYSTEM",
-      },
-    });
+  let response = client.messages
+    .stream({
+      messages: allPrompts.map((p: any) => ({
+        role: p.type === "USER" ? "user" : "assistant",
+        content: p.content,
+      })),
+      system: systemPrompt(project.type),
+      model: "claude-3-7-sonnet-20250219",
+      max_tokens: 8000,
+    })
+    .on("text", (text) => {
+      artifactProcessor.append(text);
+      artifactProcessor.parse();
+      artifact += text;
+    })
+    .on("finalMessage", async (message) => {
+      console.log("done!");
+      await prismaClient.prompt.create({
+        data: {
+          content: artifact,
+          projectId,
+          type: "SYSTEM",
+        },
+      });
 
-    await prismaClient.action.create({
-      data: {
-        content: "Done!",
-        projectId,
-        promptId: promptDb.id,
-      },
+      await prismaClient.action.create({
+        data: {
+          content: "Done!",
+          projectId,
+          promptId: promptDb.id,
+        },
+      });
+      onPromptEnd(promptDb.id);
+    })
+    .on("error", (error) => {
+      console.log("error", error);
     });
-    onPromptEnd(promptDb.id);
-  })
-  .on('error', (error) => {
-    console.log("error", error);
-  });
 
   res.json({ response });
-
-
 });
