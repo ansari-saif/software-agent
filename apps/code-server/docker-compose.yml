@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  code-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: code-server-update
+    container_name: code-server
+    user: root
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - DEFAULT_WORKSPACE=/tmp/bolty-worker
+    ports:
+      - "8443:8443"
+    volumes:
+      - /tmp/bolty-worker:/tmp/bolty-worker
+      - /tmp/bolty-config:/config 
