@@ -11,6 +11,8 @@ export async function onFileUpdate(
   type: ProjectType
 ) {
   await Bun.write(`${BASE_WORKER_DIR}/${filePath}`, fileContent);
+  console.log(`Updated file ${filePath}`);
+
   await prismaClient.action.create({
     data: {
       projectId,

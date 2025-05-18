@@ -13,6 +13,7 @@ app.use(express.json());
 
 app.post("/prompt", async (req, res) => {
   const { prompt, projectId } = req.body;
+
   const client = new Anthropic();
   const project = await prismaClient.project.findUnique({
     where: {
@@ -82,4 +83,7 @@ app.post("/prompt", async (req, res) => {
     });
 
   res.json({ response });
+});
+app.listen(9091, () => {
+  console.log("Server is running on port 9091");
 });
