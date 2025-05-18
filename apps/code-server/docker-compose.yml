@@ -7,7 +7,6 @@ services:
       dockerfile: Dockerfile
     image: code-server-update
     container_name: code-server
-    user: root
     environment:
       - PUID=1000
       - PGID=1000
@@ -15,5 +14,5 @@ services:
     ports:
       - "8443:8443"
     volumes:
-      - /tmp/bolty-worker:/tmp/bolty-worker
+      # - /tmp/bolty-worker:/tmp/bolty-worker
       - /tmp/bolty-config:/config 
