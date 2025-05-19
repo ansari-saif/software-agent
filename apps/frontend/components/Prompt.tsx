@@ -5,11 +5,12 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { Send } from "lucide-react";
 import React, { useState } from "react";
-
+import { useRouter } from "next/navigation";
+import { WORKER_API_URL } from "@/config";
 const Prompt = () => {
   const [prompt, setPrompt] = useState("");
   const { getToken } = useAuth();
-
+  const router = useRouter();
   const handleSubmit = async () => {
     const token = await getToken();
     const response = await axios.post("http://localhost:8080/project", {
@@ -20,9 +21,20 @@ const Prompt = () => {
         Authorization: `Bearer ${token}`,
       },
     }
-  );
-  console.log(response.data);
-  setPrompt("");
+    );
+    console.log(response.data);
+    setPrompt("");
+    await axios.post(`${WORKER_API_URL}/prompt`, {
+      projectId: response.data.projectId,
+      prompt: prompt,
+    },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    router.push(`/project/${response.data.projectId}`);
   };
 
   return (
