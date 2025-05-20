@@ -1,5 +1,5 @@
 "use client";
-import { BACKEND_URL, WORKER_API_URL, WORKER_URL } from "@/config";
+import {  WORKER_API_URL, WORKER_URL } from "@/config";
 import Appbar from "@/components/Appbar";
 import React from "react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,7 @@ export default function ProjectPage({
           </div>
         </div>
         <div className="w-3/4">
-          <iframe src={WORKER_URL} width={"100%"} height={"100%"} />
+          <iframe src={WORKER_URL} width={"100%"} height={"100%"} allow="clipboard-read; clipboard-write"/>
         </div>
       </div>
     </div>
