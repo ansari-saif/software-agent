@@ -20,6 +20,7 @@ export default function ProjectHistorySidebar() {
 
   const fetchProjects = async () => {
     const token = await getToken();
+    console.log({BACKEND_URL});
     const projectsResult = await axios.post(
       `${BACKEND_URL}/projects`,
       {},

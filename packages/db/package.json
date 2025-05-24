@@ -1,20 +1,21 @@
 {
-  "name": "backend",
+  "name": "db",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "exports": {
+    "./client": "./index.ts"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "db": "*"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "devDependencies": {
+    "prisma": "^6.8.2"
+  },
   "dependencies": {
-    "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2"
+    "@prisma/client": "^6.8.2"
   }
 }
