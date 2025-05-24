@@ -26,7 +26,7 @@ export function authMiddleware(
     // For development testing: Parse token without verification
     const decodedToken = jwt.decode(token, { complete: true });
     if (!decodedToken) {
-      throw new Error("Invalid token format"); ̰
+      throw new Error("Invalid token format");
     }
     
     console.log("Token algorithm:", decodedToken.header?.alg);
