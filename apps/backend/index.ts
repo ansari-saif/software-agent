@@ -1,12 +1,11 @@
 import { prismaClient } from "db/client";
-import express  from "express";
+import express from "express";
 import cors from "cors";
 import { authMiddleware } from "./middleware";
 
 const app = express();
 app.use(express.json());
 app.use(cors());
-
 
 app.post("/project", authMiddleware, async (req, res) => {
   const { prompt } = req.body;
@@ -25,7 +24,7 @@ app.post("/projects", authMiddleware, async (req, res) => {
   const projects = await prismaClient.project.findMany({
     where: { userId },
   });
-  
+
   res.json(projects);
 });
 app.listen(8080, () => {

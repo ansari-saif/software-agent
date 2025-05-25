@@ -21,24 +21,24 @@ export function authMiddleware(
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
-  
+
   try {
     // For development testing: Parse token without verification
     const decodedToken = jwt.decode(token, { complete: true });
     if (!decodedToken) {
       throw new Error("Invalid token format");
     }
-    
+
     console.log("Token algorithm:", decodedToken.header?.alg);
     console.log("Token payload:", decodedToken.payload);
-    
+
     // Extract userId from payload directly for testing
     const userId = (decodedToken.payload as any).sub;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized - No user ID in token" });
       return;
     }
-    
+
     // For production, uncomment this:
     // const jwtSecret = process.env.JWT_PUBLIC_KEY;
     // if (!jwtSecret) {
@@ -46,7 +46,7 @@ export function authMiddleware(
     // }
     // const verified = jwt.verify(token, jwtSecret, { algorithms: ['RS256'] });
     // const userId = (verified as any).sub;
-    
+
     // Set userId in request for use in routes
     req.userId = userId;
     next();
