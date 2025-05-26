@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { usePrompts } from "@/app/hooks/usePrompts";
-import { useActions } from "@/app/hooks/useActions";
 import axios from "axios";
 import { useAuth } from "@clerk/nextjs";
 export default function ProjectPage({
@@ -16,7 +15,6 @@ export default function ProjectPage({
 }) {
   const { projectId } = React.use(params);
   const { prompts } = usePrompts(projectId);
-  const { actions } = useActions(projectId);
   const [mounted, setMounted] = React.useState(false);
   const { getToken } = useAuth();
   const [prompt, setPrompt] = React.useState("");
@@ -31,14 +29,14 @@ export default function ProjectPage({
         <div className="w-1/4 h-screen flex flex-col justify-between p-4">
           <div className="text-white text-2xl font-bold">Chat History</div>
           <div className="text-white flex flex-col gap-2">
-            {prompts
-              .filter((prompt) => prompt.type === "USER")
-              .map((prompt) => (
-                <div key={prompt.id}>{prompt.content}</div>
+            {prompts.map((prompt) => (
+                prompt.promptType === "USER" ? (
+                  <div key={prompt.id}>{prompt.content}</div>
+                ) : (
+                  <div key={prompt.id}>{prompt.action}</div>
+                )
               ))}
-            {actions.map((action) => (
-              <div key={action.id}>{action.content}</div>
-            ))}
+           
           </div>
           <div className="flex gap-2">
             <Input
