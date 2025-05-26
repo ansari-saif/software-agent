@@ -1,5 +1,5 @@
 "use client";
-import {  BACKEND_URL } from "../../../config";
+import { BACKEND_URL } from "../../../config";
 import Appbar from "@/components/Appbar";
 import React from "react";
 import { Button } from "@/components/ui/button";
@@ -25,18 +25,17 @@ export default function ProjectPage({
   return (
     <div className="bg-[rgb(10,10,10)]">
       <Appbar />
-      <div className="flex h-screen">
-        <div className="w-1/4 h-screen flex flex-col justify-between p-4">
+      <div className="flex h-[calc(100vh-64px)]">
+        <div className="w-1/3 flex flex-col justify-between p-4">
           <div className="text-white text-2xl font-bold">Chat History</div>
-          <div className="text-white flex flex-col gap-2">
-            {prompts.map((prompt) => (
-                prompt.promptType === "USER" ? (
-                  <div key={prompt.id}>{prompt.content}</div>
-                ) : (
-                  <div key={prompt.id}>{prompt.action}</div>
-                )
-              ))}
-           
+          <div className="text-white flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]">
+            {prompts.map((prompt) =>
+              prompt.promptType === "USER" ? (
+                <div key={prompt.id}>{prompt.content}</div>
+              ) : (
+                <div key={prompt.id}>{prompt.action}</div>
+              )
+            )}
           </div>
           <div className="flex gap-2">
             <Input
@@ -65,6 +64,9 @@ export default function ProjectPage({
               <Send />
             </Button>
           </div>
+        </div>
+        <div className="w-2/3 text-white bg-gray-800">
+          here should be canvas
         </div>
       </div>
     </div>
