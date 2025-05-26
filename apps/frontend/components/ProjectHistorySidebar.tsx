@@ -20,21 +20,20 @@ export default function ProjectHistorySidebar() {
 
   const fetchProjects = async () => {
     const token = await getToken();
-    console.log({BACKEND_URL});
+    console.log({ BACKEND_URL });
     const projectsResult = await axios.post(
       `${BACKEND_URL}/projects`,
       {},
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-  setProjects(projectsResult.data);
-};
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    setProjects(projectsResult.data);
+  };
   useEffect(() => {
-    
-  fetchProjects();
+    fetchProjects();
   }, []);
 
   // Open sidebar when mouse is near the left edge
@@ -92,7 +91,10 @@ export default function ProjectHistorySidebar() {
             <motion.li
               key={project.id}
               className="p-2 rounded cursor-pointer flex items-center gap-2"
-              whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.06)" }}
+              whileHover={{
+                scale: 1.05,
+                backgroundColor: "rgba(255,255,255,0.06)",
+              }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
             >
               <FileText className="w-4 h-4" />
