@@ -76,6 +76,7 @@ app.post("/prompt", async (req, res) => {
       max_tokens: 8000,
     })
     .on("text", (text) => {
+      text = text + "\n";
       artifactProcessor.append(text);
       artifactProcessor.parse();
       artifact += text;

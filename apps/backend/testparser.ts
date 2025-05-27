@@ -28,7 +28,9 @@ let artifactProcessor = new ArtifactProcessor(
     (summery) => onSummery(summery)
   );
 let artifact = "";
-for (const line of text.split("\n")) {
+for (let line of text.split("\n")) {
+    line = line + "\n";
+
     artifactProcessor.append(line);
     artifactProcessor.parse();
     artifact += line;
