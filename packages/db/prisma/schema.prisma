@@ -40,7 +40,6 @@ model Prompt {
   id        String   @id @default(uuid())
   content String
   projectId String
-  userId    String
   promptType PromptType @default(USER)
   action String?
   createdAt DateTime @default(now())
