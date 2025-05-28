@@ -64,16 +64,14 @@ export class ArtifactProcessor {
         let summery = latestActionContent.split("\n").slice(1).join("\n");
         if (summery.includes("</postgAction>")) {
           summery = summery.split("</postgAction>")[0];
-          this.currentArtifact =
-            this.currentArtifact.split(latestActionContent)[1];
+          this.currentArtifact = this.currentArtifact.split(latestActionContent)[1];
           this.onSummery(summery);
         }
       } else if (latestActionType === '"schema"') {
         let fileContent = latestActionContent.split("\n").slice(1).join("\n");
         if (fileContent.includes("</postgAction>")) {
           fileContent = fileContent.split("</postgAction>")[0];
-          this.currentArtifact =
-            this.currentArtifact.split(latestActionContent)[1];
+          this.currentArtifact = this.currentArtifact.split(latestActionContent)[1];
           this.onSchema(fileContent);
         }
       }
