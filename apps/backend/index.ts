@@ -63,38 +63,38 @@ app.post("/prompt", async (req, res) => {
     (schema) => onSchema(schema),
     (summery) => onSummery(summery)
   );
-  let artifact = "";
 
-  let response = client.messages
-    .stream({
-      messages: allPrompts.map((p: any) => ({
-        role: p.type === "USER" ? "user" : "assistant",
-        content: p.content,
-      })),
-      system: systemPrompt(),
-      model: "claude-3-7-sonnet-20250219",
-      max_tokens: 8000,
-    })
-    .on("text", (text) => {
-      text = text + "\n";
-      artifactProcessor.append(text);
-      artifactProcessor.parse();
-      artifact += text;
-    })
-    .on("finalMessage", async (message) => {
-      console.log("done!");
-      await prismaClient.prompt.create({
-        data: {
-          content: artifact,
-          projectId,
-          promptType: "AGENT",
-        },
-      });
-      onPromptEnd(promptDb.id);
-    })
-    .on("error", (error) => {
-      console.log("error", error);
-    });
+  let response = await client.messages.create({
+    messages: allPrompts.map((p: any) => ({
+      role: p.type === "USER" ? "user" : "assistant",
+      content: p.content,
+    })),
+    system: systemPrompt(),
+    model: "claude-3-7-sonnet-20250219",
+    max_tokens: 2000,
+  });
+
+  // Concatenate all text content blocks from the response
+  let artifact = "";
+  if (response && Array.isArray(response.content)) {
+    for (const block of response.content) {
+      if (block.type === "text") {
+        artifact += block.text + "\n";
+      }
+    }
+  }
+  artifact = artifact.trim();
+  artifactProcessor.append(artifact);
+  artifactProcessor.parse();
+
+  await prismaClient.prompt.create({
+    data: {
+      content: artifact,
+      projectId,
+      promptType: "AGENT",
+    },
+  });
+  onPromptEnd(promptDb.id);
 
   res.json({ response });
 });
