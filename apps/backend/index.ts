@@ -63,12 +63,12 @@ app.post("/prompt", async (req, res) => {
     (schema) => onSchema(schema),
     (summery) => onSummery(summery)
   );
-
+  const message = allPrompts.map((p: any) => ({
+    role: (p.promptType === "USER" ? "user" : "assistant") as "user" | "assistant",
+    content: p.content,
+  }))
   let response = await client.messages.create({
-    messages: allPrompts.map((p: any) => ({
-      role: p.type === "USER" ? "user" : "assistant",
-      content: p.content,
-    })),
+    messages: message,
     system: systemPrompt(),
     model: "claude-3-7-sonnet-20250219",
     max_tokens: 2000,
@@ -103,6 +103,7 @@ app.get("/prompts/:projectId", authMiddleware, async (req, res) => {
   const { projectId } = req.params;
   const prompts = await prismaClient.prompt.findMany({
     where: { projectId },
+    orderBy: { createdAt: "asc" },
   });
   res.json(prompts);
 });
