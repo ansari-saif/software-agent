@@ -66,7 +66,7 @@ export default function ProjectPage({
           </div>
         </div>
         <div className="w-2/3 text-white bg-gray-800">
-          here should be canvas
+          <iframe src="https://dbdiagram.io/e/683ca3b3bd74709cb7907bee/683f28a061dc3bf08d6646ae" className="w-full h-full" />
         </div>
       </div>
     </div>
