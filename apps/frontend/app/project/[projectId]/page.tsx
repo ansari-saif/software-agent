@@ -17,22 +17,30 @@ export default function ProjectPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = React.use(params);
-  const { prompts, mutate } = usePrompts(projectId);
+  const { prompts, mutate, isLoading: isLoadingPrompts } = usePrompts(projectId);
   const [mounted, setMounted] = React.useState(false);
   const { getToken } = useAuth();
   const [prompt, setPrompt] = React.useState("");
   const chatContainerRef = React.useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const [optimisticPrompt, setOptimisticPrompt] = React.useState<{
     id: string;
     content: string;
     promptType: string;
   } | null>(null);
+  const [schemaData, setSchemaData] = React.useState<Array<{
+    module: string;
+    fields: Array<{
+      name: string;
+      type?: string;
+      ref?: string;
+    }>;
+  }> | null>(null);
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   };
 
@@ -45,6 +53,7 @@ export default function ProjectPage({
 
     const trimmedPrompt = prompt.trim();
     const tempId = Date.now().toString();
+    setError(null);
 
     // Set optimistic prompt
     setOptimisticPrompt({
@@ -88,19 +97,27 @@ export default function ProjectPage({
           const endIdx = response.data.lastIndexOf("]") + 1;
           const jsonString = response.data.substring(startIdx, endIdx);
           const parsedData = JSON.parse(jsonString);
+          
+          // Validate schema structure before setting
           if (
             Array.isArray(parsedData) &&
             parsedData.length > 0 &&
-            parsedData[0].module
+            parsedData[0].module &&
+            Array.isArray(parsedData[0].fields)
           ) {
-            // The schema will be handled by the UI components
+            setSchemaData(parsedData);
+            console.log({schemaData});
+          } else {
+            console.warn("Invalid schema format received:", parsedData);
           }
         } catch (error) {
-          console.error("Failed to extract/parse schema data:", error);
+          // Only log parsing errors, don't report to error tracking
+          console.warn("Failed to parse schema data:", error);
         }
       }
     } catch (error) {
       console.error("Failed to submit prompt:", error);
+      setError(error instanceof Error ? error.message : "Failed to submit prompt");
       // On error, restore the failed message to input
       setPrompt(trimmedPrompt);
     } finally {
@@ -130,69 +147,80 @@ export default function ProjectPage({
             ref={chatContainerRef}
             className="text-white flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
           >
-            {allPrompts?.map((prompt) =>
-              prompt.promptType === "USER" ? (
-                <div key={prompt.id} className="flex justify-end">
-                  <div className="bg-gray-700 rounded-lg p-4 max-w-[80%]">
-                    <div className="whitespace-pre-wrap">{prompt.content}</div>
-                  </div>
-                </div>
-              ) : (
-                (() => {
-                  let parsedSchema = null;
-                  let displayContent = prompt.content;
-
-                  // First try to extract and parse any JSON schema data
-                  if (prompt.content && prompt.content.includes("[") && prompt.content.includes("]")) {
-                    const startIdx = prompt.content.indexOf("[");
-                    const endIdx = prompt.content.lastIndexOf("]") + 1;
-                    const jsonString = prompt.content.substring(startIdx, endIdx);
-
-                    try {
-                      const parsedData = JSON.parse(jsonString);
-                      if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].module) {
-                        parsedSchema = parsedData;
-                        // Remove the JSON part from display content
-                        displayContent = 
-                          prompt.content.substring(0, startIdx).trim() +
-                          (prompt.content.length > endIdx 
-                            ? "\n" + prompt.content.substring(endIdx).trim()
-                            : "");
-                      }
-                    } catch (error) {
-                      console.error("Failed to parse schema:", error);
-                    }
-                  }
-
-                  // Clean up any remaining code blocks in the display content
-                  displayContent = displayContent
-                    .replace(/```(?:json|js|javascript)?\n?/g, "") // Remove opening code block markers
-                    .replace(/\n?```\n?/g, "") // Remove closing code block markers
-                    .trim();
-
-                  return (
-                    <div key={prompt.id} className="bg-gray-800 rounded-lg p-4 max-w-[80%]">
-                      <div className="whitespace-pre-wrap text-gray-200">
-                        {displayContent}
-                      </div>
-                      {parsedSchema && (
-                        <div className="mt-4 pt-4 border-t border-gray-700">
-                          <SchemaViewer schema={parsedSchema} />
-                        </div>
-                      )}
-                      {optimisticPrompt && (
-                        <div className="mt-2 flex justify-end">
-                          <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                        </div>
-                      )}
+            {isLoadingPrompts && !allPrompts?.length ? (
+              <div className="flex justify-center items-center h-32">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : (
+              allPrompts?.map((prompt) =>
+                prompt.promptType === "USER" ? (
+                  <div key={prompt.id} className="flex justify-end">
+                    <div className="bg-gray-700 rounded-lg p-4 max-w-[80%]">
+                      <div className="whitespace-pre-wrap">{prompt.content}</div>
                     </div>
-                  );
-                })()
+                  </div>
+                ) : (
+                  (() => {
+                    let parsedSchema = null;
+                    let displayContent = prompt.content;
+
+                    // First try to extract and parse any JSON schema data
+                    if (prompt.content && prompt.content.includes("[") && prompt.content.includes("]")) {
+                      const startIdx = prompt.content.indexOf("[");
+                      const endIdx = prompt.content.lastIndexOf("]") + 1;
+                      const jsonString = prompt.content.substring(startIdx, endIdx);
+
+                      try {
+                        const parsedData = JSON.parse(jsonString);
+                        if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].module) {
+                          parsedSchema = parsedData;
+                          // Remove the JSON part from display content
+                          displayContent = 
+                            prompt.content.substring(0, startIdx).trim() +
+                            (prompt.content.length > endIdx 
+                              ? "\n" + prompt.content.substring(endIdx).trim()
+                              : "");
+                        }
+                      } catch (error) {
+                        console.error("Failed to parse schema:", error);
+                      }
+                    }
+
+                    // Clean up any remaining code blocks in the display content
+                    displayContent = displayContent
+                      .replace(/```(?:json|js|javascript)?\n?/g, "") // Remove opening code block markers
+                      .replace(/\n?```\n?/g, "") // Remove closing code block markers
+                      .trim();
+
+                    return (
+                      <div key={prompt.id} className="bg-gray-800 rounded-lg p-4 max-w-[80%]">
+                        <div className="whitespace-pre-wrap text-gray-200">
+                          {displayContent}
+                        </div>
+                        {parsedSchema && (
+                          <div className="mt-4 pt-4 border-t border-gray-700">
+                            <SchemaViewer schema={parsedSchema} />
+                          </div>
+                        )}
+                        {optimisticPrompt && (
+                          <div className="mt-2 flex justify-end">
+                            <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                )
               )
             )}
             {isSubmitting && !optimisticPrompt && (
               <div className="flex justify-center">
                 <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            )}
+            {error && (
+              <div className="text-red-500 text-sm mt-2 text-center">
+                {error}
               </div>
             )}
           </div>
