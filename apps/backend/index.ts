@@ -108,6 +108,22 @@ app.get("/prompts/:projectId", authMiddleware, async (req, res) => {
   res.json(prompts);
 });
 
+app.post("/project/:projectId/schema", authMiddleware, async (req, res) => {
+  const { projectId } = req.params;
+  const { schema } = req.body;
+
+  try {
+    const updatedProject = await prismaClient.project.update({
+      where: { id: projectId },
+      data: { schema },
+    });
+    res.json(updatedProject);
+  } catch (error) {
+    console.error("Failed to update project schema:", error);
+    res.status(500).json({ error: "Failed to update project schema" });
+  }
+});
+
 app.listen(8080, () => {
   console.log("Server is running on port 8080");
 });
