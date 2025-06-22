@@ -1,13 +1,4 @@
-interface Field {
-  name: string;
-  type?: string;
-  ref?: string;
-}
-
-interface Module {
-  module: string;
-  fields: Field[];
-}
+import { Field, Module } from '../types/dbml';
 
 export class DbmlGeneratorService {
   private static capitalizeFirstLetter(str: string): string {

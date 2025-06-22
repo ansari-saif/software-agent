@@ -2,7 +2,7 @@
 import Appbar from "@/components/Appbar";
 import { use, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
+import { Send, FileDown } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { usePrompts } from "@/app/hooks/usePrompts";
 import { Loader2 } from "lucide-react";
@@ -11,6 +11,9 @@ import { useSchema } from "@/app/hooks/useSchema";
 import { OptimisticPrompt } from "@/types/prompt";
 import { ProjectPageParams } from "@/types/pages";
 import { useSubmitPrompt } from "@/app/hooks/useSubmitPrompt";
+import { useProject } from "@/app/hooks/useProject";
+import { useGenerateDbml } from "@/app/hooks/useGenerateDbml";
+import { toast } from "sonner";
 
 export default function ProjectPage({ params }: ProjectPageParams) {
   const { projectId } = use(params);
@@ -19,18 +22,43 @@ export default function ProjectPage({ params }: ProjectPageParams) {
     mutate,
     isLoading: isLoadingPrompts,
   } = usePrompts(projectId);
+  const { project } = useProject(projectId);
   const { error: schemaError, parseAndUpdateSchema } = useSchema(projectId);
   const {
     submitPrompt,
     isSubmitting,
     error: submitError,
   } = useSubmitPrompt(projectId);
+  const {
+    generateDbml,
+    error: dbmlError,
+    isSuccess,
+    dbmlData,
+    reset: resetDbml,
+  } = useGenerateDbml(projectId);
 
   const [mounted, setMounted] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [dbmlDiagramId, setDbmlDiagramId] = useState<string | null>(null);
+  const [isGeneratingDbml, setIsGeneratingDbml] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [optimisticPrompt, setOptimisticPrompt] =
     useState<OptimisticPrompt | null>(null);
+
+  // Sync dbmlDiagramId with project data
+  useEffect(() => {
+    if (project?.dbml_diagram_id) {
+      setDbmlDiagramId(project.dbml_diagram_id);
+    } else {
+      setDbmlDiagramId(null);
+    }
+  }, [project?.dbml_diagram_id]);
+
+  // Reset states when changing projects
+  useEffect(() => {
+    resetDbml();
+    setDbmlDiagramId(null);
+  }, [projectId]);
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
@@ -77,6 +105,29 @@ export default function ProjectPage({ params }: ProjectPageParams) {
     }
   };
 
+  const handleGenerateDbml = async () => {
+    setIsGeneratingDbml(true);
+    try {
+      const result = await generateDbml();
+      if (result?.dbml_diagram_id) {
+        setDbmlDiagramId(result.dbml_diagram_id);
+      }
+    } catch {
+      // Error is already handled in the hook
+    } finally {
+      setIsGeneratingDbml(false);
+    }
+  };
+
+  // Show success toast when DBML is generated
+  useEffect(() => {
+    if (isSuccess && dbmlData) {
+      toast.success('DBML diagram generated successfully', {
+        description: 'The diagram is now displayed in the right panel',
+      });
+    }
+  }, [isSuccess, dbmlData]);
+
   useEffect(() => setMounted(true), []);
   if (!mounted) {
     return null;
@@ -93,7 +144,28 @@ export default function ProjectPage({ params }: ProjectPageParams) {
       <Appbar />
       <div className="flex h-[calc(100vh-64px)]">
         <div className="w-1/3 flex flex-col justify-between p-4">
-          <div className="text-white text-2xl font-bold">Chat History</div>
+          <div className="flex justify-between items-center">
+            <div className="text-white text-2xl font-bold">Chat History</div>
+            {/* <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateDbml}
+              disabled={isGenerating || !project?.schema}
+              title={!project?.schema ? "No schema available" : "Generate DBML diagram"}
+            >
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4" />
+              )}
+              <span className="ml-2">Generate DBML</span>
+            </Button> */}
+          </div>
+          {dbmlError && (
+            <div className="text-red-500 text-sm mt-2 bg-red-950/50 p-2 rounded">
+              {dbmlError}
+            </div>
+          )}
           <div
             ref={chatContainerRef}
             className="text-white flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
@@ -221,12 +293,56 @@ export default function ProjectPage({ params }: ProjectPageParams) {
             </Button>
           </div>
         </div>
-        <div className="w-2/3 text-white bg-gray-800 overflow-y-auto">
-          <iframe
-            src="https://dbdiagram.io/e/683f352361dc3bf08d683b22/683f358061dc3bf08d684771"
-            className="w-full h-full"
-          />
-        </div>
+        {dbmlDiagramId && project?.dbml_id && (
+          <div className="w-2/3 text-white bg-gray-800 overflow-y-auto relative">
+            {isGeneratingDbml ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mb-4" />
+                  <p className="text-gray-400">Generating DBML diagram...</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <iframe
+                  key={`${project.dbml_id}-${dbmlDiagramId}`}
+                  src={`https://dbdiagram.io/e/${project.dbml_id}/${dbmlDiagramId}`}
+                  className="w-full h-full"
+                  title="DBML Diagram"
+                  onLoad={(e) => {
+                    // Remove loading state when iframe loads
+                    const target = e.target as HTMLIFrameElement;
+                    if (target.parentElement) {
+                      const loader = target.parentElement.querySelector('.iframe-loader');
+                      if (loader) {
+                        loader.classList.add('opacity-0');
+                        setTimeout(() => loader.remove(), 300);
+                      }
+                    }
+                  }}
+                />
+                <div className="iframe-loader absolute inset-0 flex items-center justify-center bg-gray-800 transition-opacity duration-300">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {!dbmlDiagramId && project?.schema && (
+          <div className="w-2/3 flex items-center justify-center text-white bg-gray-800">
+            <div className="text-center">
+              <p className="mb-4 text-gray-400">No diagram generated yet</p>
+              <Button onClick={handleGenerateDbml} disabled={isGeneratingDbml}>
+                {isGeneratingDbml ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <FileDown className="h-4 w-4 mr-2" />
+                )}
+                Generate DBML Diagram
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

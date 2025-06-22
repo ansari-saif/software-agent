@@ -19,6 +19,7 @@ model Project {
   id          String   @id @default(uuid())
   description String?
   dbml_id     String?
+  dbml_diagram_id    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   userId      String
