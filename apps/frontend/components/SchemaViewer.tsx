@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { ChevronDown, ChevronRight, Database } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, Minimize2, Maximize2 } from 'lucide-react';
 
 interface Field {
   name: string;
@@ -38,6 +38,12 @@ export default function SchemaViewer({ schema }: SchemaViewerProps) {
     );
   };
 
+  const toggleAll = () => {
+    setExpandedModules(prev => 
+      prev.length === schema.length ? [] : schema.map(mod => mod.module)
+    );
+  };
+
   const getFieldTypeColor = (type: string) => {
     switch (type) {
       case 'string':
@@ -59,12 +65,32 @@ export default function SchemaViewer({ schema }: SchemaViewerProps) {
     }
   };
 
+  const isAllExpanded = expandedModules.length === schema.length;
+
   return (
     <div className="w-full p-6 bg-gray-900">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-2 mb-8">
-          <Database className="w-6 h-6 text-blue-400" />
-          <h1 className="text-2xl font-bold text-white">Database Schema</h1>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2">
+            <Database className="w-6 h-6 text-blue-400" />
+            <h1 className="text-2xl font-bold text-white">Database Schema</h1>
+          </div>
+          <button
+            onClick={toggleAll}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-md transition-colors"
+          >
+            {isAllExpanded ? (
+              <>
+                <Minimize2 className="w-4 h-4" />
+              
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-4 h-4" />
+                
+              </>
+            )}
+          </button>
         </div>
         
         <div className="grid gap-4">

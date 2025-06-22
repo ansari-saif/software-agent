@@ -17,7 +17,7 @@ export default function ProjectPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = React.use(params);
-  const { prompts } = usePrompts(projectId);
+  const { prompts, mutate } = usePrompts(projectId);
   const [mounted, setMounted] = React.useState(false);
   const { getToken } = useAuth();
   const [prompt, setPrompt] = React.useState("");
@@ -28,14 +28,6 @@ export default function ProjectPage({
     content: string;
     promptType: string;
   } | null>(null);
-  const [schemaData, setSchemaData] = React.useState<Array<{
-    module: string;
-    fields: Array<{
-      name: string;
-      type?: string;
-      ref?: string;
-    }>;
-  }> | null>(null);
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
@@ -79,16 +71,18 @@ export default function ProjectPage({
           },
         }
       );
-      console.error("response", response.data);
+      
+      // After successful submission, refresh the prompts list
+      await mutate();
+
       // Check if response contains schema data
       if (
         response.data &&
+        typeof response.data === "string" &&
         response.data.includes("[") &&
         response.data.includes("]")
       ) {
         try {
-          console.error("andart gya");
-
           // Extract JSON array from mixed text
           const startIdx = response.data.indexOf("[");
           const endIdx = response.data.lastIndexOf("]") + 1;
@@ -99,10 +93,10 @@ export default function ProjectPage({
             parsedData.length > 0 &&
             parsedData[0].module
           ) {
-            setSchemaData(parsedData);
+            // The schema will be handled by the UI components
           }
-        } catch (e) {
-          console.error("Failed to extract/parse schema data:", e);
+        } catch (error) {
+          console.error("Failed to extract/parse schema data:", error);
         }
       }
     } catch (error) {
@@ -120,7 +114,9 @@ export default function ProjectPage({
     return null;
   }
 
-  const allPrompts = optimisticPrompt
+  // Only show optimistic prompt if it's not yet in the prompts array
+  const optimisticPromptNotInList = optimisticPrompt && !prompts?.find(p => p.id === optimisticPrompt.id);
+  const allPrompts = optimisticPromptNotInList
     ? [...(prompts || []), optimisticPrompt]
     : prompts;
 
@@ -145,54 +141,49 @@ export default function ProjectPage({
                 (() => {
                   let parsedSchema = null;
                   let displayContent = prompt.content;
-                  if (
-                    prompt.content &&
-                    prompt.content.includes("[") &&
-                    prompt.content.includes("]")
-                  ) {
-                    let startIdx = prompt.content.indexOf("[");
-                    let endIdx = prompt.content.lastIndexOf("]") + 1;
 
-                    // Remove markdown code block markers before the JSON array
-                    // Look for ```json, ```js, or ``` just before the [
-                    const codeBlockRegex = /(```json|```js|```)[ \t]*\n?$/i;
-                    const beforeJson = prompt.content.substring(0, startIdx);
-                    const codeBlockMatch = beforeJson.match(codeBlockRegex);
-                    if (codeBlockMatch) {
-                      startIdx = beforeJson.lastIndexOf(codeBlockMatch[0]);
-                    }
+                  // First try to extract and parse any JSON schema data
+                  if (prompt.content && prompt.content.includes("[") && prompt.content.includes("]")) {
+                    const startIdx = prompt.content.indexOf("[");
+                    const endIdx = prompt.content.lastIndexOf("]") + 1;
+                    const jsonString = prompt.content.substring(startIdx, endIdx);
 
-                    const jsonString = prompt.content.substring(
-                      prompt.content.indexOf("["),
-                      endIdx
-                    );
                     try {
                       const parsedData = JSON.parse(jsonString);
-                      if (
-                        Array.isArray(parsedData) &&
-                        parsedData.length > 0 &&
-                        parsedData[0].module
-                      ) {
+                      if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].module) {
                         parsedSchema = parsedData;
-                        // Remove the JSON part and code block marker from the display content
-                        displayContent =
+                        // Remove the JSON part from display content
+                        displayContent = 
                           prompt.content.substring(0, startIdx).trim() +
-                          (prompt.content.length > endIdx
-                            ? " " + prompt.content.substring(endIdx).trim()
+                          (prompt.content.length > endIdx 
+                            ? "\n" + prompt.content.substring(endIdx).trim()
                             : "");
                       }
-                    } catch (e) {
-                      // handle error
+                    } catch (error) {
+                      console.error("Failed to parse schema:", error);
                     }
                   }
+
+                  // Clean up any remaining code blocks in the display content
+                  displayContent = displayContent
+                    .replace(/```(?:json|js|javascript)?\n?/g, "") // Remove opening code block markers
+                    .replace(/\n?```\n?/g, "") // Remove closing code block markers
+                    .trim();
+
                   return (
-                    <div key={prompt.id}>
-                      <div className="whitespace-pre-wrap">
+                    <div key={prompt.id} className="bg-gray-800 rounded-lg p-4 max-w-[80%]">
+                      <div className="whitespace-pre-wrap text-gray-200">
                         {displayContent}
                       </div>
-                      {parsedSchema && <SchemaViewer schema={parsedSchema} />}
+                      {parsedSchema && (
+                        <div className="mt-4 pt-4 border-t border-gray-700">
+                          <SchemaViewer schema={parsedSchema} />
+                        </div>
+                      )}
                       {optimisticPrompt && (
-                        <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                        <div className="mt-2 flex justify-end">
+                          <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                        </div>
                       )}
                     </div>
                   );
