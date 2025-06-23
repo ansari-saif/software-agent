@@ -7,5 +7,5 @@ Store schema in db {cm:2025-06-22}
 Now I've to create check if dbml id if not exits then create it and exits then create it and refresh this iframe {cm:2025-06-22}
     1. automatic show load diagram button after json 
     2. replace ui to iframe after sucessfull generation
-Introduce artifact and Store in db.
-Make cleaner UI and implement iframe in the UI. 
+Introduce artifact and Store in db. --cancelled {cm:2025-06-23}
+Make cleaner UI and implement iframe in the UI. {cm:2025-06-23}
