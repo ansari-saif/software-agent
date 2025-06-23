@@ -1,8 +1,8 @@
 "use client";
 import Appbar from "@/components/Appbar";
-import { use, useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Send, FileDown } from "lucide-react";
+import { Send, FileDown, Database, Code, Server, type LucideIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { usePrompts } from "@/app/hooks/usePrompts";
 import { Loader2 } from "lucide-react";
@@ -14,6 +14,38 @@ import { useSubmitPrompt } from "@/app/hooks/useSubmitPrompt";
 import { useProject } from "@/app/hooks/useProject";
 import { useGenerateDbml } from "@/app/hooks/useGenerateDbml";
 import { toast } from "sonner";
+
+// New agent status type
+type AgentStatus = {
+  type: "db" | "frontend" | "backend";
+  name: string;
+  status: "idle" | "processing" | "completed" | "error";
+  progress: number;
+  icon: LucideIcon;
+  description: string;
+};
+
+// Theme definitions for each agent
+const agentThemes = {
+  db: {
+    accent: "#2F80ED", // blue
+    accentLight: "rgba(47,128,237,0.15)",
+    gradientFrom: "#0F2027",
+    gradientTo: "#203A43",
+  },
+  frontend: {
+    accent: "#FF5F6D", // coral/pink
+    accentLight: "rgba(255,95,109,0.15)",
+    gradientFrom: "#41295a",
+    gradientTo: "#2F0743",
+  },
+  backend: {
+    accent: "#34D399", // green
+    accentLight: "rgba(52,211,153,0.15)",
+    gradientFrom: "#0f3b21",
+    gradientTo: "#134e4a",
+  },
+} as const;
 
 export default function ProjectPage({ params }: ProjectPageParams) {
   const { projectId } = use(params);
@@ -44,6 +76,42 @@ export default function ProjectPage({ params }: ProjectPageParams) {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [optimisticPrompt, setOptimisticPrompt] =
     useState<OptimisticPrompt | null>(null);
+
+  // Agent selection state
+  const [selectedAgent, setSelectedAgent] =
+    useState<"db" | "frontend" | "backend">("db");
+
+  const agents: AgentStatus[] = [
+    {
+      type: "db",
+      name: "DB Engineer",
+      status: "idle",
+      progress: 0,
+      icon: Database,
+      description: "Database schema design & optimization",
+    },
+    {
+      type: "frontend",
+      name: "Frontend Dev",
+      status: "idle",
+      progress: 0,
+      icon: Code,
+      description: "UI/UX implementation",
+    },
+    {
+      type: "backend",
+      name: "Backend Dev",
+      status: "idle",
+      progress: 0,
+      icon: Server,
+      description: "API & server-side logic",
+    },
+  ];
+
+  const [agentStatuses] = useState<AgentStatus[]>(agents);
+
+  // Current theme based on selected agent
+  const theme = useMemo(() => agentThemes[selectedAgent], [selectedAgent]);
 
   // Sync dbmlDiagramId with project data
   useEffect(() => {
@@ -140,26 +208,91 @@ export default function ProjectPage({ params }: ProjectPageParams) {
     : prompts;
 
   return (
-    <div className="bg-[rgb(10,10,10)]">
+    <div
+      className="min-h-screen"
+      style={{
+        background: `linear-gradient(135deg, ${theme.gradientFrom} 0%, ${theme.gradientTo} 100%)`,
+      }}
+    >
       <Appbar />
+      {/* Agent Selection Header */}
+      <div
+        className="p-4 border-b backdrop-blur-md"
+        style={{
+          borderColor: theme.accent + "80",
+          background: `linear-gradient(90deg, ${theme.gradientFrom}80 0%, ${theme.gradientTo}80 100%)`,
+        }}
+      >
+        <div className="grid grid-cols-3 gap-4">
+          {agentStatuses.map((agent) => (
+            <button
+              key={agent.type}
+              onClick={() => setSelectedAgent(agent.type)}
+              className={`relative flex flex-col items-center p-4 rounded-xl transition-all duration-200 border-2`}
+              style={
+                selectedAgent === agent.type
+                  ? {
+                      backgroundColor: theme.accentLight,
+                      borderColor: theme.accent,
+                      boxShadow: `0 0 8px ${theme.accent}55`,
+                    }
+                  : { backgroundColor: "rgba(24,24,27,0.6)", borderColor: "rgba(63,63,70,0.6)" }
+              }
+            >
+              <div
+                className="p-3 rounded-full mb-3"
+                style={{
+                  backgroundColor:
+                    selectedAgent === agent.type ? theme.accentLight : "rgba(38,38,42,0.6)",
+                }}
+              >
+                {(() => {
+                  const agentTheme = agentThemes[agent.type];
+                  return (
+                    <agent.icon
+                      className="w-5 h-5"
+                      style={{ color: agentTheme.accent }}
+                    />
+                  );
+                })()}
+              </div>
+              <div
+                className="text-sm font-medium mb-1"
+                style={{ color: selectedAgent === agent.type ? theme.accent : "#d1d5db" }}
+              >
+                {agent.name}
+              </div>
+              <div className="text-xs text-gray-400 text-center">
+                {agent.description}
+              </div>
+              
+              <div
+                className={`absolute top-2 right-2 w-2 h-2 rounded-full  `}
+              />
+              {agent.status === "processing" && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden rounded-b-xl">
+                  <div
+                    className="h-full transition-all duration-300"
+                    style={{
+                      width: `${agent.progress}%`,
+                      backgroundColor: theme.accent,
+                    }}
+                  />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="flex h-[calc(100vh-64px)]">
         <div className="w-1/3 flex flex-col justify-between p-4">
           <div className="flex justify-between items-center">
-            <div className="text-white text-2xl font-bold">Chat History</div>
-            {/* <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGenerateDbml}
-              disabled={isGenerating || !project?.schema}
-              title={!project?.schema ? "No schema available" : "Generate DBML diagram"}
+            <div
+              className="text-2xl font-bold"
+              style={{ color: theme.accent }}
             >
-              {isGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileDown className="h-4 w-4" />
-              )}
-              <span className="ml-2">Generate DBML</span>
-            </Button> */}
+              Chat History
+            </div>
           </div>
           {dbmlError && (
             <div className="text-red-500 text-sm mt-2 bg-red-950/50 p-2 rounded">
@@ -168,17 +301,27 @@ export default function ProjectPage({ params }: ProjectPageParams) {
           )}
           <div
             ref={chatContainerRef}
-            className="text-white flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
+            className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
+            style={{ color: "#f3f4f6" }}
           >
             {isLoadingPrompts && !allPrompts?.length ? (
               <div className="flex justify-center items-center h-32">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Loader2
+                  className="h-6 w-6 animate-spin"
+                  style={{ color: theme.accent }}
+                />
               </div>
             ) : (
               allPrompts?.map((prompt) =>
                 prompt.promptType === "USER" ? (
                   <div key={prompt.id} className="flex justify-end">
-                    <div className="bg-gray-700 rounded-lg p-4 max-w-[80%]">
+                    <div
+                      className="rounded-lg p-4 max-w-[80%]"
+                      style={{
+                        backgroundColor: "rgba(0,0,0,0.4)",
+                        borderLeft: `2px solid ${theme.accent}`,
+                      }}
+                    >
                       <div className="whitespace-pre-wrap">
                         {prompt.content}
                       </div>
@@ -231,7 +374,11 @@ export default function ProjectPage({ params }: ProjectPageParams) {
                     return (
                       <div
                         key={prompt.id}
-                        className="bg-gray-800 rounded-lg p-4 max-w-[80%]"
+                        className="rounded-lg p-4 max-w-[80%]"
+                        style={{
+                          backgroundColor: "rgba(17,17,17,0.6)",
+                          borderLeft: `2px solid ${theme.accent}80`,
+                        }}
                       >
                         <div className="whitespace-pre-wrap text-gray-200">
                           {displayContent}
@@ -239,11 +386,6 @@ export default function ProjectPage({ params }: ProjectPageParams) {
                         {parsedSchema && (
                           <div className="mt-4 pt-4 border-t border-gray-700">
                             <SchemaViewer schema={parsedSchema} />
-                          </div>
-                        )}
-                        {optimisticPrompt && (
-                          <div className="mt-2 flex justify-end">
-                            <Loader2 className="h-4 w-4 animate-spin ml-2" />
                           </div>
                         )}
                       </div>
@@ -254,7 +396,7 @@ export default function ProjectPage({ params }: ProjectPageParams) {
             )}
             {isSubmitting && !optimisticPrompt && (
               <div className="flex justify-center">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#ffffff" }} />
               </div>
             )}
             {submitError && (
@@ -270,7 +412,11 @@ export default function ProjectPage({ params }: ProjectPageParams) {
           </div>
           <div className="flex gap-2">
             <Textarea
-              style={{ backgroundColor: "rgb(20,20,20)", color: "white" }}
+              style={{
+                backgroundColor: "rgba(31,31,35,0.8)",
+                color: "#f9fafb",
+                borderColor: theme.accent + "55",
+              }}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={(e) => {
@@ -282,11 +428,16 @@ export default function ProjectPage({ params }: ProjectPageParams) {
               disabled={isSubmitting}
               placeholder="Type your message... (Shift + Enter for new line)"
               rows={1}
-              className="min-h-[40px] max-h-[200px] resize-y"
+              className="min-h-[40px] max-h-[200px] resize-y border-blue-500/20"
             />
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="hover:opacity-90"
+              style={{ backgroundColor: theme.accent }}
+            >
               {isSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#ffffff" }} />
               ) : (
                 <Send className="h-4 w-4" />
               )}
