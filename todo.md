@@ -9,3 +9,11 @@ Now I've to create check if dbml id if not exits then create it and exits then c
     2. replace ui to iframe after sucessfull generation
 Introduce artifact and Store in db. --cancelled {cm:2025-06-23}
 Make cleaner UI and implement iframe in the UI. {cm:2025-06-23}
+create a env for backend and fronted
+display vscode in right bar with that content
+create backend api where you've to create whole fastapi files according to that json (same like you were doing in ai master repo)
+generate opnApi Spec file from that json
+generate frontend client from that openApi Spec file 
+and generate frontend according to that (same frontend as you've using in ai master)
+research about my main dashboard
+improve dbml generator code with intense testing 
