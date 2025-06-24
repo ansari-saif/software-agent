@@ -1,29 +1,22 @@
 "use client";
-import Appbar from "@/components/Appbar";
-import { use, useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Send, FileDown, Database, Code, Server, type LucideIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { usePrompts } from "@/app/hooks/usePrompts";
-import { Loader2 } from "lucide-react";
+import { FileDown, Loader2, Send } from "lucide-react";
+import { toast } from "sonner";
+
+import Appbar from "@/components/Appbar";
 import SchemaViewer from "@/components/SchemaViewer";
+import AgentBar from "@/components/AgentBar";
+
+import { usePrompts } from "@/app/hooks/usePrompts";
 import { useSchema } from "@/app/hooks/useSchema";
-import { OptimisticPrompt } from "@/types/prompt";
-import { ProjectPageParams } from "@/types/pages";
 import { useSubmitPrompt } from "@/app/hooks/useSubmitPrompt";
 import { useProject } from "@/app/hooks/useProject";
 import { useGenerateDbml } from "@/app/hooks/useGenerateDbml";
-import { toast } from "sonner";
 
-// New agent status type
-type AgentStatus = {
-  type: "db" | "frontend" | "backend";
-  name: string;
-  status: "idle" | "processing" | "completed" | "error";
-  progress: number;
-  icon: LucideIcon;
-  description: string;
-};
+import type { OptimisticPrompt } from "@/types/prompt";
 
 // Theme definitions for each agent
 const agentThemes = {
@@ -47,20 +40,30 @@ const agentThemes = {
   },
 } as const;
 
-export default function ProjectPage({ params }: ProjectPageParams) {
-  const { projectId } = use(params);
+type AgentType = keyof typeof agentThemes;
+
+export default function ProjectPage() {
+  const params = useParams();
+  const projectId = params.projectId as string;
+  
+  const [selectedAgent, setSelectedAgent] = useState<AgentType>("db");
+  const theme = useMemo(() => agentThemes[selectedAgent], [selectedAgent]);
+
   const {
     prompts,
     mutate,
     isLoading: isLoadingPrompts,
   } = usePrompts(projectId);
+  
   const { project } = useProject(projectId);
   const { error: schemaError, parseAndUpdateSchema } = useSchema(projectId);
+  
   const {
     submitPrompt,
     isSubmitting,
     error: submitError,
   } = useSubmitPrompt(projectId);
+  
   const {
     generateDbml,
     error: dbmlError,
@@ -73,45 +76,9 @@ export default function ProjectPage({ params }: ProjectPageParams) {
   const [prompt, setPrompt] = useState("");
   const [dbmlDiagramId, setDbmlDiagramId] = useState<string | null>(null);
   const [isGeneratingDbml, setIsGeneratingDbml] = useState(false);
+  const [optimisticPrompt, setOptimisticPrompt] = useState<OptimisticPrompt | null>(null);
+  
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const [optimisticPrompt, setOptimisticPrompt] =
-    useState<OptimisticPrompt | null>(null);
-
-  // Agent selection state
-  const [selectedAgent, setSelectedAgent] =
-    useState<"db" | "frontend" | "backend">("db");
-
-  const agents: AgentStatus[] = [
-    {
-      type: "db",
-      name: "DB Engineer",
-      status: "idle",
-      progress: 0,
-      icon: Database,
-      description: "Database schema design & optimization",
-    },
-    {
-      type: "frontend",
-      name: "Frontend Dev",
-      status: "idle",
-      progress: 0,
-      icon: Code,
-      description: "UI/UX implementation",
-    },
-    {
-      type: "backend",
-      name: "Backend Dev",
-      status: "idle",
-      progress: 0,
-      icon: Server,
-      description: "API & server-side logic",
-    },
-  ];
-
-  const [agentStatuses] = useState<AgentStatus[]>(agents);
-
-  // Current theme based on selected agent
-  const theme = useMemo(() => agentThemes[selectedAgent], [selectedAgent]);
 
   // Sync dbmlDiagramId with project data
   useEffect(() => {
@@ -126,18 +93,31 @@ export default function ProjectPage({ params }: ProjectPageParams) {
   useEffect(() => {
     resetDbml();
     setDbmlDiagramId(null);
-  }, [projectId]);
+  }, [projectId, resetDbml]);
 
+  // Auto-scroll chat to bottom
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [optimisticPrompt, prompts]);
+
+  // Show success toast when DBML is generated
+  useEffect(() => {
+    if (isSuccess && dbmlData) {
+      toast.success('DBML diagram generated successfully', {
+        description: 'The diagram is now displayed in the right panel',
+      });
+    }
+  }, [isSuccess, dbmlData]);
+
+  // Client-side mounting
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
 
   const handleSubmit = async () => {
     if (!prompt.trim() || isSubmitting) return;
@@ -158,16 +138,16 @@ export default function ProjectPage({ params }: ProjectPageParams) {
     try {
       const data = await submitPrompt(trimmedPrompt);
       await mutate();
+      
       const responseText = data?.response?.content?.[0]?.text;
-      if (
-        responseText &&
-        responseText.includes("[") &&
-        responseText.includes("]")
-      ) {
+      if (responseText?.includes("[") && responseText?.includes("]")) {
         parseAndUpdateSchema(responseText);
       }
-    } catch {
-      setPrompt(trimmedPrompt);
+    } catch (error) {
+      setPrompt(trimmedPrompt); // Restore prompt on error
+      toast.error('Failed to submit prompt', {
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+      });
     } finally {
       setOptimisticPrompt(null);
     }
@@ -180,32 +160,82 @@ export default function ProjectPage({ params }: ProjectPageParams) {
       if (result?.dbml_diagram_id) {
         setDbmlDiagramId(result.dbml_diagram_id);
       }
-    } catch {
-      // Error is already handled in the hook
+    } catch (error) {
+      toast.error('Failed to generate DBML diagram', {
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+      });
     } finally {
       setIsGeneratingDbml(false);
     }
   };
 
-  // Show success toast when DBML is generated
-  useEffect(() => {
-    if (isSuccess && dbmlData) {
-      toast.success('DBML diagram generated successfully', {
-        description: 'The diagram is now displayed in the right panel',
-      });
+  const optimisticPromptNotInList = optimisticPrompt && !prompts?.find((p) => p.id === optimisticPrompt.id);
+  const allPrompts = optimisticPromptNotInList ? [...(prompts || []), optimisticPrompt] : prompts;
+
+  const renderPromptMessage = (prompt: OptimisticPrompt) => {
+    if (prompt.promptType === "USER") {
+      return (
+        <div key={prompt.id} className="flex justify-end">
+          <div
+            className="rounded-lg p-4 max-w-[80%]"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.4)",
+              borderLeft: `2px solid ${theme.accent}`,
+            }}
+          >
+            <div className="whitespace-pre-wrap">{prompt.content}</div>
+          </div>
+        </div>
+      );
     }
-  }, [isSuccess, dbmlData]);
 
-  useEffect(() => setMounted(true), []);
-  if (!mounted) {
-    return null;
-  }
+    let parsedSchema = null;
+    let displayContent = prompt.content;
 
-  const optimisticPromptNotInList =
-    optimisticPrompt && !prompts?.find((p) => p.id === optimisticPrompt.id);
-  const allPrompts = optimisticPromptNotInList
-    ? [...(prompts || []), optimisticPrompt]
-    : prompts;
+    // Try to extract and parse any JSON schema data
+    if (displayContent?.includes("[") && displayContent?.includes("]")) {
+      const startIdx = displayContent.indexOf("[");
+      const endIdx = displayContent.lastIndexOf("]") + 1;
+      const jsonString = displayContent.substring(startIdx, endIdx);
+
+      try {
+        const parsedData = JSON.parse(jsonString);
+        if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].module) {
+          parsedSchema = parsedData;
+          displayContent = (
+            displayContent.substring(0, startIdx).trim() +
+            (displayContent.length > endIdx ? "\n" + displayContent.substring(endIdx).trim() : "")
+          );
+        }
+      } catch (error) {
+        console.error("Failed to parse schema:", error);
+      }
+    }
+
+    // Clean up code blocks
+    displayContent = displayContent
+      .replace(/```(?:json|js|javascript)?\n?/g, "")
+      .replace(/\n?```\n?/g, "")
+      .trim();
+
+    return (
+      <div
+        key={prompt.id}
+        className="rounded-lg p-4 max-w-[80%]"
+        style={{
+          backgroundColor: "rgba(17,17,17,0.6)",
+          borderLeft: `2px solid ${theme.accent}80`,
+        }}
+      >
+        <div className="whitespace-pre-wrap text-gray-200">{displayContent}</div>
+        {parsedSchema && (
+          <div className="mt-4 pt-4 border-t border-gray-700">
+            <SchemaViewer schema={parsedSchema} />
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -215,90 +245,28 @@ export default function ProjectPage({ params }: ProjectPageParams) {
       }}
     >
       <Appbar />
-      {/* Agent Selection Header */}
-      <div
-        className="p-4 border-b backdrop-blur-md"
-        style={{
-          borderColor: theme.accent + "80",
-          background: `linear-gradient(90deg, ${theme.gradientFrom}80 0%, ${theme.gradientTo}80 100%)`,
-        }}
-      >
-        <div className="grid grid-cols-3 gap-4">
-          {agentStatuses.map((agent) => (
-            <button
-              key={agent.type}
-              onClick={() => setSelectedAgent(agent.type)}
-              className={`relative flex flex-col items-center p-4 rounded-xl transition-all duration-200 border-2`}
-              style={
-                selectedAgent === agent.type
-                  ? {
-                      backgroundColor: theme.accentLight,
-                      borderColor: theme.accent,
-                      boxShadow: `0 0 8px ${theme.accent}55`,
-                    }
-                  : { backgroundColor: "rgba(24,24,27,0.6)", borderColor: "rgba(63,63,70,0.6)" }
-              }
-            >
-              <div
-                className="p-3 rounded-full mb-3"
-                style={{
-                  backgroundColor:
-                    selectedAgent === agent.type ? theme.accentLight : "rgba(38,38,42,0.6)",
-                }}
-              >
-                {(() => {
-                  const agentTheme = agentThemes[agent.type];
-                  return (
-                    <agent.icon
-                      className="w-5 h-5"
-                      style={{ color: agentTheme.accent }}
-                    />
-                  );
-                })()}
-              </div>
-              <div
-                className="text-sm font-medium mb-1"
-                style={{ color: selectedAgent === agent.type ? theme.accent : "#d1d5db" }}
-              >
-                {agent.name}
-              </div>
-              <div className="text-xs text-gray-400 text-center">
-                {agent.description}
-              </div>
-              
-              <div
-                className={`absolute top-2 right-2 w-2 h-2 rounded-full  `}
-              />
-              {agent.status === "processing" && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden rounded-b-xl">
-                  <div
-                    className="h-full transition-all duration-300"
-                    style={{
-                      width: `${agent.progress}%`,
-                      backgroundColor: theme.accent,
-                    }}
-                  />
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+      <AgentBar 
+        selectedAgent={selectedAgent} 
+        setSelectedAgent={setSelectedAgent} 
+        agentThemes={agentThemes} 
+      />
+      
       <div className="flex h-[calc(100vh-64px)]">
+        {/* Chat Section */}
         <div className="w-1/3 flex flex-col justify-between p-4">
           <div className="flex justify-between items-center">
-            <div
-              className="text-2xl font-bold"
-              style={{ color: theme.accent }}
-            >
+            <div className="text-2xl font-bold" style={{ color: theme.accent }}>
               Chat History
             </div>
           </div>
+
           {dbmlError && (
             <div className="text-red-500 text-sm mt-2 bg-red-950/50 p-2 rounded">
               {dbmlError}
             </div>
           )}
+          
+          {/* Chat Messages */}
           <div
             ref={chatContainerRef}
             className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
@@ -312,110 +280,29 @@ export default function ProjectPage({ params }: ProjectPageParams) {
                 />
               </div>
             ) : (
-              allPrompts?.map((prompt) =>
-                prompt.promptType === "USER" ? (
-                  <div key={prompt.id} className="flex justify-end">
-                    <div
-                      className="rounded-lg p-4 max-w-[80%]"
-                      style={{
-                        backgroundColor: "rgba(0,0,0,0.4)",
-                        borderLeft: `2px solid ${theme.accent}`,
-                      }}
-                    >
-                      <div className="whitespace-pre-wrap">
-                        {prompt.content}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  (() => {
-                    let parsedSchema = null;
-                    let displayContent = prompt.content;
-
-                    // First try to extract and parse any JSON schema data
-                    if (
-                      prompt.content &&
-                      prompt.content.includes("[") &&
-                      prompt.content.includes("]")
-                    ) {
-                      const startIdx = prompt.content.indexOf("[");
-                      const endIdx = prompt.content.lastIndexOf("]") + 1;
-                      const jsonString = prompt.content.substring(
-                        startIdx,
-                        endIdx
-                      );
-
-                      try {
-                        const parsedData = JSON.parse(jsonString);
-                        if (
-                          Array.isArray(parsedData) &&
-                          parsedData.length > 0 &&
-                          parsedData[0].module
-                        ) {
-                          parsedSchema = parsedData;
-                          // Remove the JSON part from display content
-                          displayContent =
-                            prompt.content.substring(0, startIdx).trim() +
-                            (prompt.content.length > endIdx
-                              ? "\n" + prompt.content.substring(endIdx).trim()
-                              : "");
-                        }
-                      } catch (error) {
-                        console.error("Failed to parse schema:", error);
-                      }
-                    }
-
-                    // Clean up any remaining code blocks in the display content
-                    displayContent = displayContent
-                      .replace(/```(?:json|js|javascript)?\n?/g, "") // Remove opening code block markers
-                      .replace(/\n?```\n?/g, "") // Remove closing code block markers
-                      .trim();
-
-                    return (
-                      <div
-                        key={prompt.id}
-                        className="rounded-lg p-4 max-w-[80%]"
-                        style={{
-                          backgroundColor: "rgba(17,17,17,0.6)",
-                          borderLeft: `2px solid ${theme.accent}80`,
-                        }}
-                      >
-                        <div className="whitespace-pre-wrap text-gray-200">
-                          {displayContent}
-                        </div>
-                        {parsedSchema && (
-                          <div className="mt-4 pt-4 border-t border-gray-700">
-                            <SchemaViewer schema={parsedSchema} />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()
-                )
-              )
+              allPrompts?.map(renderPromptMessage)
             )}
+
             {isSubmitting && !optimisticPrompt && (
               <div className="flex justify-center">
-                <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#ffffff" }} />
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
               </div>
             )}
-            {submitError && (
+
+            {(submitError || schemaError) && (
               <div className="text-red-500 text-sm mt-2 text-center">
-                {submitError}
-              </div>
-            )}
-            {schemaError && (
-              <div className="text-red-500 text-sm mt-2 text-center">
-                {schemaError}
+                {submitError || schemaError}
               </div>
             )}
           </div>
+
+          {/* Input Section */}
           <div className="flex gap-2">
             <Textarea
               style={{
                 backgroundColor: "rgba(31,31,35,0.8)",
                 color: "#f9fafb",
-                borderColor: theme.accent + "55",
+                borderColor: `${theme.accent}55`,
               }}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -428,7 +315,7 @@ export default function ProjectPage({ params }: ProjectPageParams) {
               disabled={isSubmitting}
               placeholder="Type your message... (Shift + Enter for new line)"
               rows={1}
-              className="min-h-[40px] max-h-[200px] resize-y border-blue-500/20"
+              className="min-h-[40px] max-h-[200px] resize-y"
             />
             <Button
               onClick={handleSubmit}
@@ -437,14 +324,16 @@ export default function ProjectPage({ params }: ProjectPageParams) {
               style={{ backgroundColor: theme.accent }}
             >
               {isSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#ffffff" }} />
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
               ) : (
                 <Send className="h-4 w-4" />
               )}
             </Button>
           </div>
         </div>
-        {dbmlDiagramId && project?.dbml_id && (
+
+        {/* DBML Diagram Section */}
+        {dbmlDiagramId && project?.dbml_id ? (
           <div className="w-2/3 text-white bg-gray-800 overflow-y-auto relative">
             {isGeneratingDbml ? (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
@@ -461,14 +350,11 @@ export default function ProjectPage({ params }: ProjectPageParams) {
                   className="w-full h-full"
                   title="DBML Diagram"
                   onLoad={(e) => {
-                    // Remove loading state when iframe loads
                     const target = e.target as HTMLIFrameElement;
-                    if (target.parentElement) {
-                      const loader = target.parentElement.querySelector('.iframe-loader');
-                      if (loader) {
-                        loader.classList.add('opacity-0');
-                        setTimeout(() => loader.remove(), 300);
-                      }
+                    const loader = target.parentElement?.querySelector('.iframe-loader');
+                    if (loader) {
+                      loader.classList.add('opacity-0');
+                      setTimeout(() => loader.remove(), 300);
                     }
                   }}
                 />
@@ -478,8 +364,7 @@ export default function ProjectPage({ params }: ProjectPageParams) {
               </>
             )}
           </div>
-        )}
-        {!dbmlDiagramId && project?.schema && (
+        ) : project?.schema ? (
           <div className="w-2/3 flex items-center justify-center text-white bg-gray-800">
             <div className="text-center">
               <p className="mb-4 text-gray-400">No diagram generated yet</p>
@@ -493,7 +378,7 @@ export default function ProjectPage({ params }: ProjectPageParams) {
               </Button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
