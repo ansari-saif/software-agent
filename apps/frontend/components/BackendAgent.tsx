@@ -4,8 +4,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 
+import { useBackendPrompts } from "@/app/hooks/useBackendPrompts";
+import { useSubmitBackendPrompt } from "@/app/hooks/useSubmitBackendPrompt";
+
+import type { OptimisticPrompt } from "@/types/prompt";
+
 interface BackendAgentProps {
-  projectId: string; // Used for API calls to identify the project context
+  projectId: string;
   theme: {
     accent: string;
     accentLight: string;
@@ -14,19 +19,22 @@ interface BackendAgentProps {
   };
 }
 
-type OptimisticPrompt = {
-  id: string;
-  content: string;
-  promptType: "USER" | "ASSISTANT";
-};
-
 export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _projectId = projectId; // Will be used in future API implementation
+  const {
+    prompts,
+    mutate,
+    isLoading: isLoadingPrompts,
+    error: promptsError,
+  } = useBackendPrompts(projectId);
+
+  const {
+    submitPrompt,
+    isSubmitting,
+    error: submitError,
+  } = useSubmitBackendPrompt(projectId);
+
   const [prompt, setPrompt] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [optimisticPrompt, setOptimisticPrompt] = useState<OptimisticPrompt | null>(null);
-  const [prompts, setPrompts] = useState<OptimisticPrompt[]>([]);
   
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -55,34 +63,30 @@ export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
     };
 
     setOptimisticPrompt(newPrompt);
-    setPrompts(prev => [...prev, newPrompt]);
 
     // Clear input immediately
     setPrompt("");
-    setIsSubmitting(true);
 
     try {
-      // TODO: Implement actual backend agent API call
-      // Simulate response for now
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const assistantResponse: OptimisticPrompt = {
-        id: Date.now().toString(),
-        content: "I'm the backend agent. I'll help you with API design, server logic, and database operations. This is a placeholder response - actual implementation pending.",
-        promptType: "ASSISTANT",
-      };
-      
-      setPrompts(prev => [...prev, assistantResponse]);
+      const response = await submitPrompt(trimmedPrompt);
+      if (response) {
+        await mutate();
+      }
     } catch (error) {
       setPrompt(trimmedPrompt); // Restore prompt on error
       toast.error('Failed to submit prompt', {
         description: error instanceof Error ? error.message : 'An unexpected error occurred',
       });
     } finally {
-      setIsSubmitting(false);
       setOptimisticPrompt(null);
     }
   };
+
+  const optimisticPromptNotInList =
+    optimisticPrompt && !prompts?.find((p: OptimisticPrompt) => p.id === optimisticPrompt.id);
+  const allPrompts = optimisticPromptNotInList
+    ? [...(prompts || []), optimisticPrompt]
+    : prompts;
 
   const renderPromptMessage = (prompt: OptimisticPrompt) => {
     if (prompt.promptType === "USER") {
@@ -124,6 +128,12 @@ export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
             Backend Assistant
           </div>
         </div>
+
+        {(promptsError || submitError) && (
+          <div className="text-red-500 text-sm mt-2 text-center">
+            {promptsError || submitError}
+          </div>
+        )}
         
         {/* Chat Messages */}
         <div
@@ -131,7 +141,16 @@ export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
           className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
           style={{ color: "#f3f4f6" }}
         >
-          {prompts.map(renderPromptMessage)}
+          {isLoadingPrompts && !allPrompts?.length ? (
+            <div className="flex justify-center items-center h-32">
+              <Loader2
+                className="h-6 w-6 animate-spin"
+                style={{ color: theme.accent }}
+              />
+            </div>
+          ) : (
+            allPrompts?.map(renderPromptMessage)
+          )}
 
           {isSubmitting && !optimisticPrompt && (
             <div className="flex justify-center">

@@ -38,14 +38,6 @@ const AgentBar = ({ selectedAgent, setSelectedAgent, agentThemes }: AgentBarProp
       description: "Database schema design & optimization",
     },
     {
-      type: "frontend",
-      name: "Frontend Dev",
-      status: "idle",
-      progress: 0,
-      icon: Code,
-      description: "UI/UX implementation",
-    },
-    {
       type: "backend",
       name: "Backend Dev",
       status: "idle",
@@ -53,6 +45,15 @@ const AgentBar = ({ selectedAgent, setSelectedAgent, agentThemes }: AgentBarProp
       icon: Server,
       description: "API & server-side logic",
     },
+    {
+      type: "frontend",
+      name: "Frontend Dev",
+      status: "idle",
+      progress: 0,
+      icon: Code,
+      description: "UI/UX implementation",
+    },
+    
   ];
 
   const [agentStatuses] = useState<AgentStatus[]>(agents);

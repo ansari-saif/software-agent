@@ -16,17 +16,17 @@ const agentThemes = {
     gradientFrom: "#0F2027",
     gradientTo: "#203A43",
   },
-  frontend: {
-    accent: "#FF5F6D", // coral/pink
-    accentLight: "rgba(255,95,109,0.15)",
-    gradientFrom: "#41295a",
-    gradientTo: "#2F0743",
-  },
   backend: {
     accent: "#34D399", // green
     accentLight: "rgba(52,211,153,0.15)",
     gradientFrom: "#0f3b21",
     gradientTo: "#134e4a",
+  },
+  frontend: {
+    accent: "#FF5F6D", // coral/pink
+    accentLight: "rgba(255,95,109,0.15)",
+    gradientFrom: "#41295a",
+    gradientTo: "#2F0743",
   },
 } as const;
 
@@ -35,7 +35,7 @@ type AgentType = keyof typeof agentThemes;
 export default function ProjectPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  
+
   const [selectedAgent, setSelectedAgent] = useState<AgentType>("db");
   const theme = useMemo(() => agentThemes[selectedAgent], [selectedAgent]);
 
@@ -66,12 +66,12 @@ export default function ProjectPage() {
       }}
     >
       <Appbar />
-      <AgentBar 
-        selectedAgent={selectedAgent} 
-        setSelectedAgent={setSelectedAgent} 
-        agentThemes={agentThemes} 
+      <AgentBar
+        selectedAgent={selectedAgent}
+        setSelectedAgent={setSelectedAgent}
+        agentThemes={agentThemes}
       />
-      
+
       {renderAgent()}
     </div>
   );

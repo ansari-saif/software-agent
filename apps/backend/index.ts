@@ -8,8 +8,8 @@ import { onPromptEnd, onSchema, onSummery } from "./os";
 import { systemPrompt } from "./systemPrompt";
 import { DbmlGeneratorService } from "./services/dbmlGenerator";
 import fetch from "node-fetch";
-import dotenv from 'dotenv';
-import { Module, isModuleArray } from './types/dbml';
+import dotenv from "dotenv";
+import { Module, isModuleArray } from "./types/dbml";
 
 dotenv.config();
 
@@ -18,7 +18,7 @@ app.use(express.json());
 app.use(cors());
 
 if (!process.env.DBDIAGRAM_API_TOKEN) {
-  throw new Error('DBDIAGRAM_API_TOKEN environment variable is required');
+  throw new Error("DBDIAGRAM_API_TOKEN environment variable is required");
 }
 
 const DBDIAGRAM_API_TOKEN = process.env.DBDIAGRAM_API_TOKEN;
@@ -56,12 +56,12 @@ app.get("/project/:projectId", authMiddleware, async (req, res) => {
     });
 
     if (!project) {
-       res.status(404).json({ error: "Project not found" });
+      res.status(404).json({ error: "Project not found" });
     }
 
     // Optional: Add authorization check
     if (project?.userId !== userId) {
-       res.status(403).json({ error: "Not authorized to access this project" });
+      res.status(403).json({ error: "Not authorized to access this project" });
     }
 
     res.json(project);
@@ -70,8 +70,7 @@ app.get("/project/:projectId", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch project" });
   }
 });
-
-app.post("/prompt", authMiddleware, async (req, res) => {
+const setPrompt = async (req: any, res: any) => {
   let { prompt, projectId } = req.body;
   prompt = prompt.trim();
 
@@ -103,9 +102,11 @@ app.post("/prompt", authMiddleware, async (req, res) => {
     (summery) => onSummery(summery)
   );
   const message = allPrompts.map((p: any) => ({
-    role: (p.promptType === "USER" ? "user" : "assistant") as "user" | "assistant",
+    role: (p.promptType === "USER" ? "user" : "assistant") as
+      | "user"
+      | "assistant",
     content: p.content,
-  }))
+  }));
   let response = await client.messages.create({
     messages: message,
     system: systemPrompt(),
@@ -136,16 +137,19 @@ app.post("/prompt", authMiddleware, async (req, res) => {
   onPromptEnd(promptDb.id);
 
   res.json({ response });
-});
-
-app.get("/prompts/:projectId", authMiddleware, async (req, res) => {
+}
+const getPrompt = async (req: any, res: any) => {
   const { projectId } = req.params;
   const prompts = await prismaClient.prompt.findMany({
     where: { projectId },
     orderBy: { createdAt: "asc" },
   });
   res.json(prompts);
-});
+};
+app.post("/prompt", authMiddleware, setPrompt);
+app.get("/prompts/:projectId", authMiddleware, getPrompt);
+app.post("/backend-prompt", authMiddleware, setPrompt);
+app.get("/backend-prompts/:projectId", authMiddleware, getPrompt);
 
 app.post("/project/:projectId/schema", authMiddleware, async (req, res) => {
   const { projectId } = req.params;
@@ -192,32 +196,35 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
 
     // Prepare request headers
     const headers = {
-      'dbdiagram-access-token': DBDIAGRAM_API_TOKEN,
-      'Content-Type': 'application/json'
+      "dbdiagram-access-token": DBDIAGRAM_API_TOKEN,
+      "Content-Type": "application/json",
     };
 
     let response;
     let isCreated = false;
     if (project.dbml_id) {
       // Update existing diagram
-      response = await fetch(`https://api.dbdiagram.io/v1/diagrams/${project.dbml_id}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({
-          name: project.description || 'Untitled ER Diagram',
-          content: dbmlContent
-        })
-      });
+      response = await fetch(
+        `https://api.dbdiagram.io/v1/diagrams/${project.dbml_id}`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            name: project.description || "Untitled ER Diagram",
+            content: dbmlContent,
+          }),
+        }
+      );
     } else {
       isCreated = true;
       // Create new diagram
-      response = await fetch('https://api.dbdiagram.io/v1/diagrams', {
-        method: 'POST',
+      response = await fetch("https://api.dbdiagram.io/v1/diagrams", {
+        method: "POST",
         headers,
         body: JSON.stringify({
-          name: project.description || 'Untitled ER Diagram',
-          content: dbmlContent
-        })
+          name: project.description || "Untitled ER Diagram",
+          content: dbmlContent,
+        }),
       });
     }
 
@@ -230,7 +237,9 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
     }
 
     if (!response.ok) {
-      throw new Error(`Failed to ${project.dbml_id ? 'update' : 'create'} diagram: ${responseText}`);
+      throw new Error(
+        `Failed to ${project.dbml_id ? "update" : "create"} diagram: ${responseText}`
+      );
     }
 
     // Update project with dbml_id if it's a new diagram
@@ -238,30 +247,33 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
     if (!project.dbml_id) {
       await prismaClient.project.update({
         where: { id: projectId },
-        data: { dbml_id: data.id }
+        data: { dbml_id: data.id },
       });
     }
 
     // Update project schema
     await prismaClient.project.update({
       where: { id: projectId },
-      data: { schema: project.schema }
+      data: { schema: project.schema },
     });
     if (isCreated) {
-      response = await fetch(`https://api.dbdiagram.io/v1/embed_link/${dbml_id}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          "detailLevel": "All",
-          "darkMode": "true",
-          "highlight": "true",
-          "enabled": "true"
-        })
-      });
+      response = await fetch(
+        `https://api.dbdiagram.io/v1/embed_link/${dbml_id}`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            detailLevel: "All",
+            darkMode: "true",
+            highlight: "true",
+            enabled: "true",
+          }),
+        }
+      );
       const responseJson = await response.json();
       await prismaClient.project.update({
         where: { id: projectId },
-        data: { dbml_diagram_id: responseJson._id }
+        data: { dbml_diagram_id: responseJson._id },
       });
     }
 
@@ -269,12 +281,15 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
       dbml_id: project.dbml_id || data.id,
       content: dbmlContent,
       url: `https://dbdiagram.io/d/${project.dbml_id || data.id}`,
-      ...data // Include all additional data from the API response
+      ...data, // Include all additional data from the API response
     });
   } catch (error) {
-    console.error('Error generating DBML:', error);
-    res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'Failed to generate DBML diagram' 
+    console.error("Error generating DBML:", error);
+    res.status(500).json({
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate DBML diagram",
     });
   }
 });
