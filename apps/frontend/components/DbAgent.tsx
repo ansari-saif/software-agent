@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { FileDown, Loader2, Send } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import type { Schema } from "@/types/schema";
 
 import SchemaViewer from "@/components/SchemaViewer";
+import DbmlDiagramLoading from "@/components/DbmlDiagramLoading";
+import DbmlDiagramViewer from "@/components/DbmlDiagramViewer";
+import DbmlDiagramEmpty from "@/components/DbmlDiagramEmpty";
 
 import { usePrompts } from "@/app/hooks/usePrompts";
 import { useSchema } from "@/app/hooks/useSchema";
@@ -26,6 +29,7 @@ interface DbAgentProps {
 }
 
 export default function DbAgent({ projectId, theme }: DbAgentProps) {
+
   const {
     prompts,
     mutate,
@@ -40,7 +44,7 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const { error: schemaError, parseAndUpdateSchema } = useSchema(projectId);
-
+  const [isJsonCreated, setIsJsonCreated] = useState(false);
   const {
     submitPrompt,
     isSubmitting,
@@ -61,6 +65,9 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
     if (project) {
       setSchema(project.schema);
       setDbmlDiagramId(project.dbml_diagram_id || null);
+      if(project.schema) {
+        setIsJsonCreated(true);
+      }
     }
   }, [project]);
 
@@ -107,6 +114,7 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
       const responseText = data?.response?.content?.[0]?.text;
       if (responseText?.includes("[") && responseText?.includes("]")) {
         await parseAndUpdateSchema(responseText);
+        setIsJsonCreated(true);
       }
     } catch (error) {
       setPrompt(trimmedPrompt); // Restore prompt on error
@@ -118,17 +126,22 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
       });
     } finally {
       setOptimisticPrompt(null);
+      
     }
   };
 
   const handleGenerateDbml = async () => {
     setIsGeneratingDbml(true);
+    
     try {
       const result = await generateDbml();
       if (result?.dbml_diagram_id) {
+        setIsJsonCreated(true);
+
         // Update both states together
         setDbmlDiagramId(result.dbml_diagram_id);
         if (project?.schema) {
+          setIsJsonCreated(true);
           setSchema(project.schema);
         }
       }
@@ -141,6 +154,7 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
       });
     } finally {
       setIsGeneratingDbml(false);
+      
     }
   };
 
@@ -219,6 +233,37 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
           </div>
         )}
       </div>
+    );
+  };
+
+  const renderDbmlDiagram = () => {
+    console.log("inside a renderDbmlDiagram -------===============>>>>>>>>");
+    console.log("dbmlDiagramId", dbmlDiagramId);
+    console.log("isGeneratingDbml", isGeneratingDbml);
+    console.log("schema", schema);
+    console.log("project", project);
+    if (dbmlDiagramId) {
+      return (
+        <div className="w-2/3 text-white bg-gray-800 overflow-y-auto relative">
+          {isGeneratingDbml ? (
+            <DbmlDiagramLoading />
+          ) : (
+            <DbmlDiagramViewer 
+              dbmlId={project?.dbml_id || ''} 
+              diagramId={dbmlDiagramId} 
+            />
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <DbmlDiagramEmpty 
+        hasSchema={!!schema}
+        isGenerating={isGeneratingDbml}
+        onGenerate={handleGenerateDbml}
+        isJsonCreated={isJsonCreated}
+      />
     );
   };
 
@@ -305,64 +350,7 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
       </div>
 
       {/* DBML Diagram Section */}
-      {dbmlDiagramId ? (
-        <div className="w-2/3 text-white bg-gray-800 overflow-y-auto relative">
-          {isGeneratingDbml ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin mb-4" />
-                <p className="text-gray-400">Generating DBML diagram...</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <iframe
-                key={`${project?.dbml_id}-${dbmlDiagramId}`}
-                src={`https://dbdiagram.io/e/${project?.dbml_id}/${dbmlDiagramId}`}
-                className="w-full h-full"
-                title="DBML Diagram"
-                onLoad={(e) => {
-                  const target = e.target as HTMLIFrameElement;
-                  const loader =
-                    target.parentElement?.querySelector(".iframe-loader");
-                  if (loader) {
-                    loader.classList.add("opacity-0");
-                    setTimeout(() => loader.remove(), 300);
-                  }
-                }}
-              />
-              <div className="iframe-loader absolute inset-0 flex items-center justify-center bg-gray-800 transition-opacity duration-300">
-                <Loader2 className="h-8 w-8 animate-spin" />
-              </div>
-            </>
-          )}
-        </div>
-      ) : schema ? (
-        <div className="w-2/3 flex items-center justify-center text-white bg-gray-800">
-          <div className="text-center">
-            <p className="mb-4 text-gray-400">No diagram generated yet</p>
-            <Button onClick={handleGenerateDbml} disabled={isGeneratingDbml}>
-              {isGeneratingDbml ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <FileDown className="h-4 w-4 mr-2" />
-              )}
-              Generate DBML Diagram
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="w-2/3 text-white bg-gray-800 overflow-y-auto relative">
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center text-gray-400">
-              <p>Database Schema Visualization</p>
-              <p className="text-sm mt-2">
-                Start a conversation to generate your database schema and view the DBML diagram
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {renderDbmlDiagram()}
     </div>
   );
 }
