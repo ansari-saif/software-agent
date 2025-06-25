@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { FileDown, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
+import type { Schema } from "@/types/schema";
 
 import SchemaViewer from "@/components/SchemaViewer";
 
@@ -30,8 +31,14 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
     mutate,
     isLoading: isLoadingPrompts,
   } = usePrompts(projectId);
-
+  const [schema, setSchema] = useState<Schema | null | undefined>(null);
   const { project } = useProject(projectId);
+  const [dbmlDiagramId, setDbmlDiagramId] = useState<string | null>(null);
+  const [isGeneratingDbml, setIsGeneratingDbml] = useState(false);
+  const [optimisticPrompt, setOptimisticPrompt] = useState<OptimisticPrompt | null>(null);
+
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
   const { error: schemaError, parseAndUpdateSchema } = useSchema(projectId);
 
   const {
@@ -45,37 +52,22 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
     error: dbmlError,
     isSuccess,
     dbmlData,
-    reset: resetDbml,
   } = useGenerateDbml(projectId);
 
   const [prompt, setPrompt] = useState("");
-  const [dbmlDiagramId, setDbmlDiagramId] = useState<string | null>(null);
-  const [isGeneratingDbml, setIsGeneratingDbml] = useState(false);
-  const [optimisticPrompt, setOptimisticPrompt] =
-    useState<OptimisticPrompt | null>(null);
 
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-
-  // Sync dbmlDiagramId with project data
+  // Combined effect for project data updates
   useEffect(() => {
-    if (project?.dbml_diagram_id) {
-      setDbmlDiagramId(project.dbml_diagram_id);
-    } else {
-      setDbmlDiagramId(null);
+    if (project) {
+      setSchema(project.schema);
+      setDbmlDiagramId(project.dbml_diagram_id || null);
     }
-  }, [project?.dbml_diagram_id]);
-
-  // Reset states when changing projects
-  useEffect(() => {
-    resetDbml();
-    setDbmlDiagramId(null);
-  }, [projectId, resetDbml]);
+  }, [project]);
 
   // Auto-scroll chat to bottom
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   };
 
@@ -114,7 +106,7 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
 
       const responseText = data?.response?.content?.[0]?.text;
       if (responseText?.includes("[") && responseText?.includes("]")) {
-        parseAndUpdateSchema(responseText);
+        await parseAndUpdateSchema(responseText);
       }
     } catch (error) {
       setPrompt(trimmedPrompt); // Restore prompt on error
@@ -134,7 +126,11 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
     try {
       const result = await generateDbml();
       if (result?.dbml_diagram_id) {
+        // Update both states together
         setDbmlDiagramId(result.dbml_diagram_id);
+        if (project?.schema) {
+          setSchema(project.schema);
+        }
       }
     } catch (error) {
       toast.error("Failed to generate DBML diagram", {
@@ -309,7 +305,7 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
       </div>
 
       {/* DBML Diagram Section */}
-      {dbmlDiagramId && project?.dbml_id ? (
+      {dbmlDiagramId ? (
         <div className="w-2/3 text-white bg-gray-800 overflow-y-auto relative">
           {isGeneratingDbml ? (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
@@ -321,8 +317,8 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
           ) : (
             <>
               <iframe
-                key={`${project.dbml_id}-${dbmlDiagramId}`}
-                src={`https://dbdiagram.io/e/${project.dbml_id}/${dbmlDiagramId}`}
+                key={`${project?.dbml_id}-${dbmlDiagramId}`}
+                src={`https://dbdiagram.io/e/${project?.dbml_id}/${dbmlDiagramId}`}
                 className="w-full h-full"
                 title="DBML Diagram"
                 onLoad={(e) => {
@@ -341,7 +337,7 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
             </>
           )}
         </div>
-      ) : project?.schema ? (
+      ) : schema ? (
         <div className="w-2/3 flex items-center justify-center text-white bg-gray-800">
           <div className="text-center">
             <p className="mb-4 text-gray-400">No diagram generated yet</p>
