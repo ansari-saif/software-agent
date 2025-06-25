@@ -256,6 +256,8 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
       where: { id: projectId },
       data: { schema: project.schema },
     });
+
+    let responseJson;
     if (isCreated) {
       response = await fetch(
         `https://api.dbdiagram.io/v1/embed_link/${dbml_id}`,
@@ -270,7 +272,7 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
           }),
         }
       );
-      const responseJson = await response.json();
+      responseJson = await response.json();
       await prismaClient.project.update({
         where: { id: projectId },
         data: { dbml_diagram_id: responseJson._id },
@@ -279,9 +281,10 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
 
     res.json({
       dbml_id: project.dbml_id || data.id,
+      dbml_diagram_id: responseJson?._id,
       content: dbmlContent,
       url: `https://dbdiagram.io/d/${project.dbml_id || data.id}`,
-      ...data, // Include all additional data from the API response
+      ...data,
     });
   } catch (error) {
     console.error("Error generating DBML:", error);

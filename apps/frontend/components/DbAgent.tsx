@@ -36,12 +36,16 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
     isLoading: isLoadingPrompts,
   } = usePrompts(projectId);
   const [schema, setSchema] = useState<Schema | null | undefined>(null);
-  const { project } = useProject(projectId);
+  const {
+    project,
+    refetch: refetchProject
+  } = useProject(projectId);
   const [dbmlDiagramId, setDbmlDiagramId] = useState<string | null>(null);
   const [isGeneratingDbml, setIsGeneratingDbml] = useState(false);
   const [optimisticPrompt, setOptimisticPrompt] = useState<OptimisticPrompt | null>(null);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [dbmlStarted, setDbmlStarted] = useState(false);
 
   const { error: schemaError, parseAndUpdateSchema } = useSchema(projectId);
   const [isJsonCreated, setIsJsonCreated] = useState(false);
@@ -131,15 +135,19 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
   };
 
   const handleGenerateDbml = async () => {
+    console.warn("inside handleGenerateDbml");
     setIsGeneratingDbml(true);
-    
+    setDbmlStarted(true);
     try {
       const result = await generateDbml();
-      if (result?.dbml_diagram_id) {
+      if (result.dbml_diagram_id) {
         setIsJsonCreated(true);
-
-        // Update both states together
-        setDbmlDiagramId(result.dbml_diagram_id);
+        await setDbmlDiagramId(result.dbml_diagram_id);
+        console.warn("dbml id set");
+        console.log("dbmlDiagramId", dbmlDiagramId);
+        // Refetch project data to get latest updates
+        await refetchProject();
+        
         if (project?.schema) {
           setIsJsonCreated(true);
           setSchema(project.schema);
@@ -154,7 +162,6 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
       });
     } finally {
       setIsGeneratingDbml(false);
-      
     }
   };
 
@@ -242,15 +249,16 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
     console.log("isGeneratingDbml", isGeneratingDbml);
     console.log("schema", schema);
     console.log("project", project);
-    if (dbmlDiagramId) {
+    console.log("dbmlStarted", dbmlStarted);
+    if (dbmlDiagramId || dbmlStarted) {
       return (
         <div className="w-2/3 text-white bg-gray-800 overflow-y-auto relative">
-          {isGeneratingDbml ? (
+          {isGeneratingDbml || !dbmlDiagramId? (
             <DbmlDiagramLoading />
           ) : (
             <DbmlDiagramViewer 
               dbmlId={project?.dbml_id || ''} 
-              diagramId={dbmlDiagramId} 
+              diagramId={dbmlDiagramId || ''} 
             />
           )}
         </div>
