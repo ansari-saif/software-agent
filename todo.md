@@ -25,3 +25,4 @@ research about my main dashboard
 improve dbml generator code with intense testing 
 update db diagram content on update content
 typing like loader in left panel
+I've to clear the structure of docker and implement it on backend and frontend
