@@ -24,3 +24,4 @@ and generate frontend according to that (same frontend as you've using in ai mas
 research about my main dashboard
 improve dbml generator code with intense testing 
 update db diagram content on update content
+typing like loader in left panel

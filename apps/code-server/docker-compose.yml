@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  code-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: code-server-update
+    container_name: code-server
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - DEFAULT_WORKSPACE=/tmp/stich-worker
+    ports:
+      - "8443:8443"
+      - "8081:8081"
+    volumes:
+      - /tmp/stich-worker:/tmp/stich-worker
+      - /tmp/stich-config:/config 
