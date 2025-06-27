@@ -5,10 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        # Use actual Docker GID from host
-        DOCKER_GID: ${DOCKER_GID:-999}
-    image: code-server-update2
+
+    image: code-server-update
     container_name: code-server
     environment:
       - PUID=1000

@@ -3,16 +3,11 @@ FROM lscr.io/linuxserver/code-server:latest
 USER root
 
 # Add retry logic and error handling for package installation
-RUN rm -rf /var/lib/apt/lists/* \
-    && apt-get clean \
-    && apt-get update --fix-missing \
-    && apt-get install -y --no-install-recommends \
-        python3 \
-        python3-pip \
-        python3-venv \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
+RUN apt-get update --fix-missing && \
+    apt-get install -y --no-install-recommends \
+        python3 python3-pip python3-venv && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
 ENV VIRTUAL_ENV=/opt/venv
@@ -27,6 +22,7 @@ RUN mkdir -p /template \
 # Install Python dependencies
 WORKDIR /template
 
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
@@ -35,6 +31,7 @@ RUN chown -R abc:abc $VIRTUAL_ENV
 
 USER root
 RUN touch /config/.bashrc && chown abc:abc /config/.bashrc
+
 USER abc
 RUN echo "source $VIRTUAL_ENV/bin/activate" >> /config/.bashrc
 
