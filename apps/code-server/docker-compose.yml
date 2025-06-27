@@ -5,6 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Use actual Docker GID from host
+        DOCKER_GID: ${DOCKER_GID:-999}
     image: code-server-update2
     container_name: code-server
     environment:
@@ -13,7 +16,10 @@ services:
       - DEFAULT_WORKSPACE=/tmp/stich-worker
     ports:
       - "8443:8443"
-      - "8081:8081"
+      - "8000:8000"
     volumes:
       - /tmp/stich-worker:/tmp/stich-worker
-      - /tmp/stich-config:/config 
+      - /tmp/stich-config:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Add privileged mode if needed for Docker-in-Docker
+    privileged: true 
