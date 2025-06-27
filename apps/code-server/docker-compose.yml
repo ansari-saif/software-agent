@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: code-server-update
+    image: code-server-update2
     container_name: code-server
     environment:
       - PUID=1000
