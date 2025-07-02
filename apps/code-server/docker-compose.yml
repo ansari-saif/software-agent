@@ -18,6 +18,3 @@ services:
     volumes:
       - /tmp/stich-worker:/tmp/stich-worker
       - /tmp/stich-config:/config
-      - /var/run/docker.sock:/var/run/docker.sock
-    # Add privileged mode if needed for Docker-in-Docker
-    privileged: true 

@@ -20,9 +20,13 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
     "@types/node-fetch": "^2.6.12",
+    "dockernode": "^0.1.0",
+    "dockerode": "^4.0.7",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "tar-fs": "^3.0.10"
   }
 }

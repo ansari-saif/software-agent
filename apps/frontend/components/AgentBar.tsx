@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Database, Code, Server, type LucideIcon } from "lucide-react";
 
 // Theme type definition
@@ -19,16 +19,22 @@ type AgentStatus = {
   progress: number;
   icon: LucideIcon;
   description: string;
+  isCompleted: boolean;
 };
 
 type AgentBarProps = {
   selectedAgent: AgentType;
   setSelectedAgent: (agent: AgentType) => void;
   agentThemes: Record<AgentType, Theme>;
+  isCompleted: {
+    db: boolean;
+    backend: boolean;
+    frontend: boolean;
+  };
 };
 
-const AgentBar = ({ selectedAgent, setSelectedAgent, agentThemes }: AgentBarProps) => {
-  const agents: AgentStatus[] = [
+const AgentBar = ({ selectedAgent, setSelectedAgent, agentThemes, isCompleted }: AgentBarProps) => {
+  const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>([
     {
       type: "db",
       name: "DB Engineer",
@@ -36,6 +42,7 @@ const AgentBar = ({ selectedAgent, setSelectedAgent, agentThemes }: AgentBarProp
       progress: 0,
       icon: Database,
       description: "Database schema design & optimization",
+      isCompleted: isCompleted.db,
     },
     {
       type: "backend",
@@ -44,6 +51,7 @@ const AgentBar = ({ selectedAgent, setSelectedAgent, agentThemes }: AgentBarProp
       progress: 0,
       icon: Server,
       description: "API & server-side logic",
+      isCompleted: isCompleted.backend,
     },
     {
       type: "frontend",
@@ -52,12 +60,35 @@ const AgentBar = ({ selectedAgent, setSelectedAgent, agentThemes }: AgentBarProp
       progress: 0,
       icon: Code,
       description: "UI/UX implementation",
+      isCompleted: isCompleted.frontend,
     },
-    
-  ];
+  ]);
 
-  const [agentStatuses] = useState<AgentStatus[]>(agents);
+  // Update agent statuses when isCompleted prop changes
+  useEffect(() => {
+    setAgentStatuses(prevStatuses =>
+      prevStatuses.map(agent => ({
+        ...agent,
+        status: isCompleted[agent.type] ? "completed" : agent.status === "processing" ? "processing" : "idle",
+        isCompleted: isCompleted[agent.type],
+      }))
+    );
+  }, [isCompleted]);
+
   const theme = agentThemes[selectedAgent] || agentThemes.db; // Default to db theme if none selected
+
+  const getStatusColor = (agent: AgentStatus) => {
+    switch (agent.status) {
+      case "completed":
+        return "bg-green-500";
+      case "processing":
+        return "bg-yellow-500 animate-pulse";
+      case "error":
+        return "bg-red-500";
+      default:
+        return "bg-gray-600";
+    }
+  };
 
   return (
     <div
@@ -117,15 +148,7 @@ const AgentBar = ({ selectedAgent, setSelectedAgent, agentThemes }: AgentBarProp
               {agent.description}
             </div>
             <div
-              className={`absolute top-2 right-2 w-2 h-2 rounded-full ${
-                agent.status === "processing"
-                  ? "bg-yellow-500"
-                  : agent.status === "completed"
-                    ? "bg-green-500"
-                    : agent.status === "error"
-                      ? "bg-red-500"
-                      : "bg-gray-600"
-              }`}
+              className={`absolute top-2 right-2 w-2 h-2 rounded-full ${getStatusColor(agent)}`}
             />
             {agent.status === "processing" && (
               <div className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden rounded-b-xl">

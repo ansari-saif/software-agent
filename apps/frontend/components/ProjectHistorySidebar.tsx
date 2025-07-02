@@ -5,6 +5,7 @@ import { Folder, FileText } from "lucide-react";
 import { motion } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { BACKEND_URL } from "../config";
 type Project = {
   id: string;
@@ -17,6 +18,7 @@ export default function ProjectHistorySidebar() {
   const [projects, setProjects] = useState<Project[]>([]);
   const { getToken } = useAuth();
   const prevOpen = useRef(false);
+  const router = useRouter();
 
   const fetchProjects = async () => {
     const token = await getToken();
@@ -96,6 +98,7 @@ export default function ProjectHistorySidebar() {
                 backgroundColor: "rgba(255,255,255,0.06)",
               }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              onClick={() => router.push(`/project/${project.id}`)}
             >
               <FileText className="w-4 h-4" />
               {project.description}

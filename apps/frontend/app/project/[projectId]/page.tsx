@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 
 import Appbar from "@/components/Appbar";
@@ -35,24 +35,47 @@ type AgentType = keyof typeof agentThemes;
 export default function ProjectPage() {
   const params = useParams();
   const projectId = params.projectId as string;
+  const [isCompleted, setIsCompleted] = useState({
+    db: false,
+    frontend: false,
+    backend: false,
+  });
 
   const [selectedAgent, setSelectedAgent] = useState<AgentType>("db");
   const theme = useMemo(() => agentThemes[selectedAgent], [selectedAgent]);
 
   const [mounted, setMounted] = useState(false);
+  const setAgentCompleted = useCallback((agent: AgentType, completed: boolean) => {
+    setIsCompleted((prev) => {
+      const newIsCompleted = { ...prev, [agent]: completed }
+      return newIsCompleted;
+    });
+  }, []);
+
+  const setDbCompleted = useCallback((completed: boolean) => {
+    setAgentCompleted("db", completed);
+  }, [setAgentCompleted]);
+  // const setFrontendCompleted = (completed: boolean) => {
+  //   setAgentCompleted("frontend", completed);
+  // }
+  // const setBackendCompleted = (completed: boolean) => {
+  //   setAgentCompleted("backend", completed);
+  // }
 
   // Client-side mounting
-  useState(() => setMounted(true));
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   if (!mounted) return null;
 
   const renderAgent = () => {
     switch (selectedAgent) {
       case "db":
-        return <DbAgent projectId={projectId} theme={theme} />;
+        return <DbAgent projectId={projectId} theme={theme} setDbCompleted={setDbCompleted} />;
       case "frontend":
-        return <FrontendAgent projectId={projectId} theme={theme} />;
+        return <FrontendAgent projectId={projectId} theme={theme}  />;
       case "backend":
-        return <BackendAgent projectId={projectId} theme={theme} />;
+        return <BackendAgent projectId={projectId} theme={theme}  />;
       default:
         return null;
     }
@@ -70,6 +93,7 @@ export default function ProjectPage() {
         selectedAgent={selectedAgent}
         setSelectedAgent={setSelectedAgent}
         agentThemes={agentThemes}
+        isCompleted={isCompleted}
       />
 
       {renderAgent()}

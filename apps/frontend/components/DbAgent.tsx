@@ -26,9 +26,10 @@ interface DbAgentProps {
     gradientFrom: string;
     gradientTo: string;
   };
+  setDbCompleted: (completed: boolean) => void;
 }
 
-export default function DbAgent({ projectId, theme }: DbAgentProps) {
+export default function DbAgent({ projectId, theme, setDbCompleted }: DbAgentProps) {
 
   const {
     prompts,
@@ -40,6 +41,13 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
     project,
     refetch: refetchProject
   } = useProject(projectId);
+
+  useEffect(() => {
+    const hasSchema = !!schema;
+    console.warn("hasSchema", hasSchema);
+    setDbCompleted(hasSchema);
+  }, [schema, setDbCompleted]);
+
   const [dbmlDiagramId, setDbmlDiagramId] = useState<string | null>(null);
   const [isGeneratingDbml, setIsGeneratingDbml] = useState(false);
   const [optimisticPrompt, setOptimisticPrompt] = useState<OptimisticPrompt | null>(null);
@@ -135,7 +143,7 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
   };
 
   const handleGenerateDbml = async () => {
-    console.warn("inside handleGenerateDbml");
+    
     setIsGeneratingDbml(true);
     setDbmlStarted(true);
     try {
@@ -143,8 +151,8 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
       if (result.dbml_diagram_id) {
         setIsJsonCreated(true);
         await setDbmlDiagramId(result.dbml_diagram_id);
-        console.warn("dbml id set");
-        console.log("dbmlDiagramId", dbmlDiagramId);
+        
+        
         // Refetch project data to get latest updates
         await refetchProject();
         
@@ -244,12 +252,12 @@ export default function DbAgent({ projectId, theme }: DbAgentProps) {
   };
 
   const renderDbmlDiagram = () => {
-    console.log("inside a renderDbmlDiagram -------===============>>>>>>>>");
-    console.log("dbmlDiagramId", dbmlDiagramId);
-    console.log("isGeneratingDbml", isGeneratingDbml);
-    console.log("schema", schema);
-    console.log("project", project);
-    console.log("dbmlStarted", dbmlStarted);
+    
+    
+    
+    
+    
+    
     if (dbmlDiagramId || dbmlStarted) {
       return (
         <div className="w-2/3 text-white bg-gray-800 overflow-y-auto relative">
