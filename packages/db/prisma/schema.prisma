@@ -25,6 +25,7 @@ model Project {
   userId      String
   schema      Json?
   prompts     Prompt[]
+  backendPrompts BackendPrompt[]
 }
 
 enum PromptType {
@@ -43,4 +44,14 @@ model Prompt {
   updatedAt DateTime @updatedAt
   project   Project  @relation(fields: [projectId], references: [id])
   
+}
+
+model BackendPrompt {
+  id        String   @id @default(uuid())
+  content String
+  projectId String
+  promptType PromptType @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id])
 }

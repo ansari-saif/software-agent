@@ -109,7 +109,7 @@ const setPrompt = async (req: any, res: any) => {
   }));
   let response = await client.messages.create({
     messages: message,
-    system: systemPrompt(),
+    system: systemPrompt("db"),
     model: "claude-3-7-sonnet-20250219",
     max_tokens: 2000,
   });
@@ -146,10 +146,86 @@ const getPrompt = async (req: any, res: any) => {
   });
   res.json(prompts);
 };
+const getBackendPrompt = async (req: any, res: any) => {
+  const { projectId } = req.params;
+  const prompts = await prismaClient.backendPrompt.findMany({
+    where: { projectId },
+    orderBy: { createdAt: "asc" },
+  });
+  res.json(prompts);
+};
+const setBackendPrompt = async (req: any, res: any) => {
+  let { prompt, projectId } = req.body;
+  prompt = prompt.trim();
+
+  const client = new Anthropic();
+  const project = await prismaClient.project.findUnique({
+    where: {
+      id: projectId,
+    },
+  });
+  if (!project) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+  const promptDb = await prismaClient.backendPrompt.create({
+    data: {
+      content: prompt,
+      projectId,
+      promptType: "USER",
+    },
+  });
+
+  const allPrompts = await prismaClient.backendPrompt.findMany({
+    where: { projectId },
+    orderBy: { createdAt: "asc" },
+  });
+  let artifactProcessor = new ArtifactProcessor(
+    "",
+    (schema) => onSchema(schema),
+    (summery) => onSummery(summery)
+  );
+  const message = allPrompts.map((p: any) => ({
+    role: (p.promptType === "USER" ? "user" : "assistant") as
+      | "user"
+      | "assistant",
+    content: p.content,
+  }));
+  let response = await client.messages.create({
+    messages: message,
+    system: systemPrompt("backend"),
+    model: "claude-3-7-sonnet-20250219",
+    max_tokens: 2000,
+  });
+
+  // Concatenate all text content blocks from the response
+  let artifact = "";
+  if (response && Array.isArray(response.content)) {
+    for (const block of response.content) {
+      if (block.type === "text") {
+        artifact += block.text + "\n";
+      }
+    }
+  }
+  artifact = artifact.trim();
+  artifactProcessor.append(artifact);
+  artifactProcessor.parse();
+
+  await prismaClient.backendPrompt.create({
+    data: {
+      content: artifact,
+      projectId,
+      promptType: "AGENT",
+    },
+  });
+  onPromptEnd(promptDb.id);
+
+  res.json({ response });
+}
 app.post("/prompt", authMiddleware, setPrompt);
 app.get("/prompts/:projectId", authMiddleware, getPrompt);
-app.post("/backend-prompt", authMiddleware, setPrompt);
-app.get("/backend-prompts/:projectId", authMiddleware, getPrompt);
+app.post("/backend-prompt", authMiddleware, setBackendPrompt);
+app.get("/backend-prompts/:projectId", authMiddleware, getBackendPrompt);
 
 app.post("/project/:projectId/schema", authMiddleware, async (req, res) => {
   const { projectId } = req.params;
@@ -298,5 +374,5 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
 });
 
 app.listen(8080, () => {
-  console.log("Server is running on port 8080");
+  console.log("Server is rurnning on port 8080");
 });
