@@ -3,17 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
-import type { Schema } from "@/types/schema";
-
+import type { Project, Schema } from "@/types/schema";
 import SchemaViewer from "@/components/SchemaViewer";
 import DbmlDiagramLoading from "@/components/DbmlDiagramLoading";
 import DbmlDiagramViewer from "@/components/DbmlDiagramViewer";
 import DbmlDiagramEmpty from "@/components/DbmlDiagramEmpty";
-
 import { usePrompts } from "@/app/hooks/usePrompts";
 import { useSchema } from "@/app/hooks/useSchema";
 import { useSubmitPrompt } from "@/app/hooks/useSubmitPrompt";
-import { useProject } from "@/app/hooks/useProject";
 import { useGenerateDbml } from "@/app/hooks/useGenerateDbml";
 
 import type { OptimisticPrompt } from "@/types/prompt";
@@ -27,9 +24,11 @@ interface DbAgentProps {
     gradientTo: string;
   };
   setDbCompleted: (completed: boolean) => void;
+  project: Project | undefined;
+  refetchProject: () => void;
 }
 
-export default function DbAgent({ projectId, theme, setDbCompleted }: DbAgentProps) {
+export default function DbAgent({ projectId, theme, setDbCompleted, project, refetchProject }: DbAgentProps) {
 
   const {
     prompts,
@@ -37,10 +36,6 @@ export default function DbAgent({ projectId, theme, setDbCompleted }: DbAgentPro
     isLoading: isLoadingPrompts,
   } = usePrompts(projectId);
   const [schema, setSchema] = useState<Schema | null | undefined>(null);
-  const {
-    project,
-    refetch: refetchProject
-  } = useProject(projectId);
 
   useEffect(() => {
     const hasSchema = !!schema;

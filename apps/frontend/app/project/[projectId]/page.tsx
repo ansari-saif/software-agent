@@ -7,6 +7,7 @@ import AgentBar from "@/components/AgentBar";
 import DbAgent from "@/components/DbAgent";
 import FrontendAgent from "@/components/FrontendAgent";
 import BackendAgent from "@/components/BackendAgent";
+import { useProject } from "@/app/hooks/useProject";
 
 // Theme definitions for each agent
 const agentThemes = {
@@ -35,6 +36,10 @@ type AgentType = keyof typeof agentThemes;
 export default function ProjectPage() {
   const params = useParams();
   const projectId = params.projectId as string;
+  const {
+    project,
+    refetch: refetchProject
+  } = useProject(projectId);
   const [isCompleted, setIsCompleted] = useState({
     db: false,
     frontend: false,
@@ -71,11 +76,11 @@ export default function ProjectPage() {
   const renderAgent = () => {
     switch (selectedAgent) {
       case "db":
-        return <DbAgent projectId={projectId} theme={theme} setDbCompleted={setDbCompleted} />;
+        return <DbAgent projectId={projectId} theme={theme} setDbCompleted={setDbCompleted} project={project} refetchProject={refetchProject} />;
       case "frontend":
-        return <FrontendAgent projectId={projectId} theme={theme}  />;
+        return <FrontendAgent projectId={projectId} theme={theme}   />;
       case "backend":
-        return <BackendAgent projectId={projectId} theme={theme}  />;
+        return <BackendAgent projectId={projectId} theme={theme} project={project}  />;
       default:
         return null;
     }

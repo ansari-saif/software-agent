@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, Database } from "lucide-react";
 import { toast } from "sonner";
 
 import { useBackendPrompts } from "@/app/hooks/useBackendPrompts";
 import { useSubmitBackendPrompt } from "@/app/hooks/useSubmitBackendPrompt";
 
 import type { OptimisticPrompt } from "@/types/prompt";
+import { Project } from "@/types/schema";
 
 interface BackendAgentProps {
   projectId: string;
@@ -17,15 +18,27 @@ interface BackendAgentProps {
     gradientFrom: string;
     gradientTo: string;
   };
+  project: Project | undefined;
 }
 
-export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
+export default function BackendAgent({
+  projectId,
+  theme,
+  project,
+}: BackendAgentProps) {
   const {
     prompts,
     mutate,
     isLoading: isLoadingPrompts,
     error: promptsError,
   } = useBackendPrompts(projectId);
+
+  const [isReady, setIsReady] = useState(false);
+  useEffect(() => {
+    if (project?.schema) {
+      setIsReady(true);
+    }
+  }, [project]);
 
   const {
     submitPrompt,
@@ -34,14 +47,16 @@ export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
   } = useSubmitBackendPrompt(projectId);
 
   const [prompt, setPrompt] = useState("");
-  const [optimisticPrompt, setOptimisticPrompt] = useState<OptimisticPrompt | null>(null);
-  
+  const [optimisticPrompt, setOptimisticPrompt] =
+    useState<OptimisticPrompt | null>(null);
+
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
     }
   };
 
@@ -74,8 +89,11 @@ export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
       }
     } catch (error) {
       setPrompt(trimmedPrompt); // Restore prompt on error
-      toast.error('Failed to submit prompt', {
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+      toast.error("Failed to submit prompt", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
       });
     } finally {
       setOptimisticPrompt(null);
@@ -83,7 +101,8 @@ export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
   };
 
   const optimisticPromptNotInList =
-    optimisticPrompt && !prompts?.find((p: OptimisticPrompt) => p.id === optimisticPrompt.id);
+    optimisticPrompt &&
+    !prompts?.find((p: OptimisticPrompt) => p.id === optimisticPrompt.id);
   const allPrompts = optimisticPromptNotInList
     ? [...(prompts || []), optimisticPrompt]
     : prompts;
@@ -114,7 +133,9 @@ export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
           borderLeft: `2px solid ${theme.accent}80`,
         }}
       >
-        <div className="whitespace-pre-wrap text-gray-200">{prompt.content}</div>
+        <div className="whitespace-pre-wrap text-gray-200">
+          {prompt.content}
+        </div>
       </div>
     );
   };
@@ -134,30 +155,51 @@ export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
             {promptsError || submitError}
           </div>
         )}
-        
-        {/* Chat Messages */}
-        <div
-          ref={chatContainerRef}
-          className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
-          style={{ color: "#f3f4f6" }}
-        >
-          {isLoadingPrompts && !allPrompts?.length ? (
-            <div className="flex justify-center items-center h-32">
-              <Loader2
-                className="h-6 w-6 animate-spin"
-                style={{ color: theme.accent }}
-              />
-            </div>
-          ) : (
-            allPrompts?.map(renderPromptMessage)
-          )}
+        {isReady ? (
+          <div
+            ref={chatContainerRef}
+            className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
+            style={{ color: "#f3f4f6" }}
+          >
+            {isLoadingPrompts && !allPrompts?.length ? (
+              <div className="flex justify-center items-center h-32">
+                <Loader2
+                  className="h-6 w-6 animate-spin"
+                  style={{ color: theme.accent }}
+                />
+              </div>
+            ) : (
+              allPrompts?.map(renderPromptMessage)
+            )}
 
-          {isSubmitting && !optimisticPrompt && (
-            <div className="flex justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-white" />
+            {isSubmitting && !optimisticPrompt && (
+              <div className="flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
+            <div className="relative">
+              <Database className="w-12 h-12" style={{ color: theme.accent }} />
+              <div className="absolute -top-1 -right-1">
+                <div className="animate-spin">
+                  <Loader2 className="w-6 h-6" style={{ color: theme.accentLight }} />
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-semibold" style={{ color: theme.accent }}>
+                Create Database Schema First
+              </h3>
+              <p className="text-gray-400 max-w-md">
+                Please create your database schema using the DB Agent before proceeding. 
+                Once the schema is ready, you can return here to work with the Backend Assistant.
+              </p>
+            </div>
+          </div>
+        )}
+        {/* Chat Messages */}
 
         {/* Input Section */}
         <div className="flex gap-2">
@@ -200,10 +242,12 @@ export default function BackendAgent({ projectId, theme }: BackendAgentProps) {
         <div className="flex items-center justify-center h-full">
           <div className="text-center text-gray-400">
             <p>API Documentation</p>
-            <p className="text-sm mt-2">API endpoints and documentation will appear here</p>
+            <p className="text-sm mt-2">
+              API endpoints and documentation will appear here
+            </p>
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}
