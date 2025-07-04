@@ -10,6 +10,7 @@ import { DbmlGeneratorService } from "./services/dbmlGenerator";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import { Module, isModuleArray } from "./types/dbml";
+import { writeFiles } from "./utils/fileWriter";
 
 dotenv.config();
 
@@ -137,7 +138,7 @@ const setPrompt = async (req: any, res: any) => {
   onPromptEnd(promptDb.id);
 
   res.json({ response });
-}
+};
 const getPrompt = async (req: any, res: any) => {
   const { projectId } = req.params;
   const prompts = await prismaClient.prompt.findMany({
@@ -221,10 +222,122 @@ const setBackendPrompt = async (req: any, res: any) => {
   onPromptEnd(promptDb.id);
 
   res.json({ response });
-}
+};
+const generateBackend = async (req: any, res: any) => {
+  let { projectId } = req.body;
+
+  try {
+    const client = new Anthropic();
+    const project = await prismaClient.project.findUnique({
+      where: {
+        id: projectId,
+      },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    // Get the project's schema to generate backend
+    const schema = project.schema as any[];
+    if (!schema) {
+      res
+        .status(400)
+        .json({ error: "Project schema is required for backend generation" });
+      return;
+    }
+    for (let index = 0; index < schema.length; index++) {
+      const element = schema[index];
+
+      // Create initial prompt for backend generation
+      const initialPrompt = `Generate a complete backend implementation based on this schema: ${schema}`;
+
+      const promptDb = await prismaClient.backendPrompt.create({
+        data: {
+          content: initialPrompt,
+          projectId,
+          promptType: "USER",
+        },
+      });
+
+      const allPrompts = await prismaClient.backendPrompt.findMany({
+        where: { projectId },
+        orderBy: { createdAt: "asc" },
+      });
+
+      const message = allPrompts.map((p: any) => ({
+        role: (p.promptType === "USER" ? "user" : "assistant") as
+          | "user"
+          | "assistant",
+        content: p.content,
+      }));
+
+      let response = await client.messages.create({
+        messages: message,
+        system: systemPrompt("backend"),
+        model: "claude-3-7-sonnet-20250219",
+        max_tokens: 4000,
+      });
+
+      // Parse and process the AI response
+      let files: Array<{ file_path: string; file_content: string }> = [];
+      let currentFile: { file_path?: string; file_content?: string } = {};
+
+      if (response && Array.isArray(response.content)) {
+        for (const block of response.content) {
+          if (block.type === "text") {
+            try {
+              // Try to parse the content as JSON
+              const fileData = JSON.parse(block.text);
+              if (fileData.file_path && fileData.file_content) {
+                files.push(fileData);
+              }
+            } catch (e) {
+              // If not JSON, append to the current response
+              console.log("Non-JSON response block:", block.text);
+            }
+          }
+        }
+      }
+
+      // Write the files to disk
+      if (files.length > 0) {
+        await writeFiles(files, projectId);
+      }
+
+      // Store the complete response in the database
+      const artifactContent = files
+        .map((f) => `File: ${f.file_path}\n\n${f.file_content}\n\n---\n\n`)
+        .join("");
+
+      await prismaClient.backendPrompt.create({
+        data: {
+          content: artifactContent,
+          projectId,
+          promptType: "AGENT",
+        },
+      });
+
+      onPromptEnd(promptDb.id);
+    }
+    res.json({
+      message: "Backend generated successfully",
+      projectId,
+    });
+  } catch (error) {
+    console.error("Error in backend generation:", error);
+    res.status(500).json({
+      error: "Failed to generate backend",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
 app.post("/prompt", authMiddleware, setPrompt);
 app.get("/prompts/:projectId", authMiddleware, getPrompt);
 app.post("/backend-prompt", authMiddleware, setBackendPrompt);
+// FIXME: REVERT THIS
+app.post("/generate-backend", generateBackend);
 app.get("/backend-prompts/:projectId", authMiddleware, getBackendPrompt);
 
 app.post("/project/:projectId/schema", authMiddleware, async (req, res) => {

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Database } from "lucide-react";
+import { Loader2, Send, Database, Code2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useBackendPrompts } from "@/app/hooks/useBackendPrompts";
 import { useSubmitBackendPrompt } from "@/app/hooks/useSubmitBackendPrompt";
+import { useGenerateBackend } from "@/app/hooks/useGenerateBackend";
 
 import type { OptimisticPrompt } from "@/types/prompt";
 import { Project } from "@/types/schema";
@@ -32,6 +33,8 @@ export default function BackendAgent({
     isLoading: isLoadingPrompts,
     error: promptsError,
   } = useBackendPrompts(projectId);
+
+  const { generateBackend, isGenerating } = useGenerateBackend(projectId);
 
   const [isReady, setIsReady] = useState(false);
   useEffect(() => {
@@ -97,6 +100,16 @@ export default function BackendAgent({
       });
     } finally {
       setOptimisticPrompt(null);
+    }
+  };
+
+  const handleGenerateBackend = async () => {
+    try {
+      await generateBackend();
+      await mutate(); // Refresh prompts after generation
+    } catch (error) {
+      // Error is already handled in the hook
+      console.error('Backend generation failed:', error);
     }
   };
 
@@ -168,8 +181,32 @@ export default function BackendAgent({
                   style={{ color: theme.accent }}
                 />
               </div>
-            ) : (
+            ) : allPrompts?.length ? (
               allPrompts?.map(renderPromptMessage)
+            ) : (
+              <div className="flex flex-col justify-center items-center h-32 gap-3">
+                <Button
+                  onClick={handleGenerateBackend}
+                  disabled={isGenerating}
+                  className="flex items-center gap-2 px-4 py-2 transition-all duration-200 hover:opacity-90"
+                  style={{ backgroundColor: theme.accent }}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Code2 className="h-4 w-4" />
+                      <span>Generate Backend</span>
+                    </>
+                  )}
+                </Button>
+                <p className="text-sm text-gray-400 text-center max-w-xs">
+                  Start by generating the backend infrastructure based on your schema
+                </p>
+              </div>
             )}
 
             {isSubmitting && !optimisticPrompt && (
