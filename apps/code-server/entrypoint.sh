@@ -6,22 +6,44 @@ CONFIG_DIR="/config/data/User"
 TASKS_DIR="$TARGET_DIR/.vscode"
 TASKS_FILE="$TASKS_DIR/tasks.json"
 
-# Configure dark mode
-mkdir -p /config/data/User
-echo '{"workbench.colorTheme": "Default Dark+"}' > /config/data/User/settings.json
-chown -R abc:abc /config/data
+# Create all necessary directories with proper permissions
+mkdir -p "$TARGET_DIR"
+mkdir -p "$CONFIG_DIR"
+mkdir -p "$CONFIG_DIR/globalStorage"
+mkdir -p "$CONFIG_DIR/workspaceStorage"
 
-# If the target directory is empty, copy contents from template
+# Set full permissions for TARGET_DIR first
+chmod -R 777 "$TARGET_DIR"
+chown -R abc:abc "$TARGET_DIR"
+
+# Set ownership for all config directories
+chown -R abc:abc /config
+chmod -R 755 /config
+chmod g+rwx,o+rx /config
+find /config -type d -exec chmod 755 {} \;
+find /config -type f -exec chmod 644 {} \;
+
+# Configure dark mode
+echo '{"workbench.colorTheme": "Default Dark+"}' > "$CONFIG_DIR/settings.json"
+chown abc:abc "$CONFIG_DIR/settings.json"
+chmod 644 "$CONFIG_DIR/settings.json"
+
+# Handle template copying
 if [ -z "$(ls -A $TARGET_DIR)" ]; then
   echo "[INFO] Initializing /tmp/stich-worker from template..."
   cp -r /template/. "$TARGET_DIR"
+  chown -R abc:abc "$TARGET_DIR"
+  chmod -R 777 "$TARGET_DIR"  # Ensure full permissions after copying
+  echo "[INFO] Template initialization complete with full permissions"
 else
   echo "[INFO] /tmp/stich-worker already initialized."
 fi
 
+# Create VS Code tasks
 if [ ! -f "$TASKS_FILE" ]; then
   echo "[INFO] Creating VS Code tasks.json..."
   mkdir -p "$TASKS_DIR"
+  chmod 777 "$TASKS_DIR"
   cat > "$TASKS_FILE" <<EOF
 {
   "version": "2.0.0",
@@ -44,10 +66,23 @@ if [ ! -f "$TASKS_FILE" ]; then
 }
 EOF
   chown -R abc:abc "$TASKS_DIR"
+  chmod 666 "$TASKS_FILE"  # Make tasks file writable
 else
   echo "[INFO] tasks.json already exists. Skipping creation."
 fi
 
+# Double-check and ensure permissions
+echo "[INFO] Ensuring final permissions..."
+chmod -R 777 "$TARGET_DIR"
+chown -R abc:abc "$TARGET_DIR"
 
-# Now launch code-server
+# Verify permissions
+echo "[INFO] Config directory permissions:"
+ls -la /config/data/User/globalStorage || true
+echo "[INFO] Workspace directory status:"
+ls -la "$TARGET_DIR" || true
+echo "[INFO] Workspace files permissions:"
+find "$TARGET_DIR" -type f -exec ls -l {} \; || true
+
+# Start code-server as abc user
 exec /init
