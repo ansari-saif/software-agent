@@ -1,50 +1,58 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
+# Configuration
 TARGET_DIR="/tmp/stich-worker"
-CONFIG_DIR="/config/data/User"
+CONFIG_DIR="/config"
+USER_DIR="$CONFIG_DIR/data/User"
 TASKS_DIR="$TARGET_DIR/.vscode"
 TASKS_FILE="$TASKS_DIR/tasks.json"
 
-# Create all necessary directories with proper permissions
-mkdir -p "$TARGET_DIR"
-mkdir -p "$CONFIG_DIR"
-mkdir -p "$CONFIG_DIR/globalStorage"
-mkdir -p "$CONFIG_DIR/workspaceStorage"
+# Function to handle errors
+handle_error() {
+    echo "[ERROR] $1"
+    exit 1
+}
 
-# Set full permissions for TARGET_DIR first
-chmod -R 777 "$TARGET_DIR"
+echo "[INFO] Starting permission setup..."
+
+# Create all necessary directories
+mkdir -p "$TARGET_DIR" || handle_error "Failed to create $TARGET_DIR"
+mkdir -p "$CONFIG_DIR" || handle_error "Failed to create $CONFIG_DIR"
+mkdir -p "$USER_DIR" || handle_error "Failed to create $USER_DIR"
+mkdir -p "$USER_DIR/globalStorage" || handle_error "Failed to create globalStorage"
+mkdir -p "$USER_DIR/workspaceStorage" || handle_error "Failed to create workspaceStorage"
+mkdir -p "$CONFIG_DIR/.local" || handle_error "Failed to create .local"
+mkdir -p "$CONFIG_DIR/.config" || handle_error "Failed to create .config"
+
+# Set aggressive permissions for the config directory
+echo "[INFO] Setting permissions..."
+chown -R abc:abc "$CONFIG_DIR"
+chmod -R 777 "$CONFIG_DIR"
+
+# Set permissions for target directory
 chown -R abc:abc "$TARGET_DIR"
-
-# Set ownership for all config directories
-chown -R abc:abc /config
-chmod -R 755 /config
-chmod g+rwx,o+rx /config
-find /config -type d -exec chmod 755 {} \;
-find /config -type f -exec chmod 644 {} \;
+chmod -R 777 "$TARGET_DIR"
 
 # Configure dark mode
-echo '{"workbench.colorTheme": "Default Dark+"}' > "$CONFIG_DIR/settings.json"
-chown abc:abc "$CONFIG_DIR/settings.json"
-chmod 644 "$CONFIG_DIR/settings.json"
+echo "[INFO] Configuring settings..."
+echo '{"workbench.colorTheme": "Default Dark+"}' > "$USER_DIR/settings.json"
+chown abc:abc "$USER_DIR/settings.json"
+chmod 666 "$USER_DIR/settings.json"
 
 # Handle template copying
 if [ -z "$(ls -A $TARGET_DIR)" ]; then
-  echo "[INFO] Initializing /tmp/stich-worker from template..."
-  cp -r /template/. "$TARGET_DIR"
-  chown -R abc:abc "$TARGET_DIR"
-  chmod -R 777 "$TARGET_DIR"  # Ensure full permissions after copying
-  echo "[INFO] Template initialization complete with full permissions"
-else
-  echo "[INFO] /tmp/stich-worker already initialized."
+    echo "[INFO] Initializing workspace from template..."
+    cp -r /template/. "$TARGET_DIR" || handle_error "Failed to copy template"
+    chown -R abc:abc "$TARGET_DIR"
+    chmod -R 777 "$TARGET_DIR"
 fi
 
 # Create VS Code tasks
 if [ ! -f "$TASKS_FILE" ]; then
-  echo "[INFO] Creating VS Code tasks.json..."
-  mkdir -p "$TASKS_DIR"
-  chmod 777 "$TASKS_DIR"
-  cat > "$TASKS_FILE" <<EOF
+    echo "[INFO] Creating VS Code tasks..."
+    mkdir -p "$TASKS_DIR"
+    cat > "$TASKS_FILE" <<EOF
 {
   "version": "2.0.0",
   "tasks": [
@@ -65,24 +73,16 @@ if [ ! -f "$TASKS_FILE" ]; then
   ]
 }
 EOF
-  chown -R abc:abc "$TASKS_DIR"
-  chmod 666 "$TASKS_FILE"  # Make tasks file writable
-else
-  echo "[INFO] tasks.json already exists. Skipping creation."
+    chown -R abc:abc "$TASKS_DIR"
+    chmod -R 777 "$TASKS_DIR"
 fi
 
-# Double-check and ensure permissions
-echo "[INFO] Ensuring final permissions..."
-chmod -R 777 "$TARGET_DIR"
-chown -R abc:abc "$TARGET_DIR"
-
 # Verify permissions
-echo "[INFO] Config directory permissions:"
-ls -la /config/data/User/globalStorage || true
-echo "[INFO] Workspace directory status:"
-ls -la "$TARGET_DIR" || true
-echo "[INFO] Workspace files permissions:"
-find "$TARGET_DIR" -type f -exec ls -l {} \; || true
+echo "[INFO] Verifying permissions..."
+ls -la "$USER_DIR/globalStorage" || echo "[WARN] Could not verify globalStorage"
+ls -la "$TARGET_DIR" || echo "[WARN] Could not verify workspace"
 
-# Start code-server as abc user
+echo "[INFO] Permission setup complete. Starting code-server..."
+
+# Let s6-overlay handle the rest
 exec /init

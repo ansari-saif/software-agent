@@ -12,18 +12,9 @@ services:
       - PUID=1000
       - PGID=1000
       - DEFAULT_WORKSPACE=/tmp/stich-worker
-      - TZ=UTC
     ports:
       - "8443:8443"
       - "8000:8000"
     volumes:
-      - stich-worker-data:/tmp/stich-worker
-      - code-server-config:/config
-    user: root  # Start as root to handle permissions
-    privileged: true  # Add this to handle permissions
-
-volumes:
-  code-server-config:
-    driver: local
-  stich-worker-data:
-    driver: local
+      - /tmp/stich-worker:/tmp/stich-worker
+      - /tmp/stich-config:/config
