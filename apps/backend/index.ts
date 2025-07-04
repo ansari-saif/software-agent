@@ -248,10 +248,10 @@ const generateBackend = async (req: any, res: any) => {
       return;
     }
     for (let index = 0; index < schema.length; index++) {
-      const element = schema[index];
+      const element = JSON.stringify(schema[index]);
 
       // Create initial prompt for backend generation
-      const initialPrompt = `Generate a complete backend implementation based on this schema: ${schema}`;
+      const initialPrompt = `Generate a complete backend implementation based on this schema: ${element}`;
 
       const promptDb = await prismaClient.backendPrompt.create({
         data: {
@@ -282,7 +282,6 @@ const generateBackend = async (req: any, res: any) => {
 
       // Parse and process the AI response
       let files: Array<{ file_path: string; file_content: string }> = [];
-      let currentFile: { file_path?: string; file_content?: string } = {};
 
       if (response && Array.isArray(response.content)) {
         for (const block of response.content) {
@@ -290,9 +289,8 @@ const generateBackend = async (req: any, res: any) => {
             try {
               // Try to parse the content as JSON
               const fileData = JSON.parse(block.text);
-              if (fileData.file_path && fileData.file_content) {
-                files.push(fileData);
-              }
+              files = [...files, ...fileData]
+            
             } catch (e) {
               // If not JSON, append to the current response
               console.log("Non-JSON response block:", block.text);
