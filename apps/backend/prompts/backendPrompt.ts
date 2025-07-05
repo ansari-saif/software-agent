@@ -26,7 +26,7 @@ Input:
 }
 Expected Output:
 [{
-  "file_path": "backend/app/models/user.py",
+  "file_path": "app/models/user.py",
   "file_content": "from sqlmodel import SQLModel, Field\nfrom typing import Optional\nfrom datetime import datetime\n\nclass UserBase(SQLModel):\n    email: str = Field(max_length=255, unique=True)\n    full_name: str = Field(max_length=255)\n    is_active: bool = Field(default=True)\n\nclass UserCreate(UserBase):\n    pass\n\nclass UserUpdate(SQLModel):\n    email: Optional[str] = Field(default=None, max_length=255)\n    full_name: Optional[str] = Field(default=None, max_length=255)\n    is_active: Optional[bool] = Field(default=None)\n\nclass User(UserBase, table=True):\n    __tablename__ = \"users\"\n    id: Optional[int] = Field(default=None, primary_key=True)\n    created_at: datetime = Field(default_factory=datetime.utcnow)\n    updated_at: Optional[datetime] = Field(default=None)"
 }]
 Example 2: Product Module with Reference
@@ -42,7 +42,7 @@ Input:
 }
 Expected Output:
 [{
-  "file_path": "backend/app/models/product.py",
+  "file_path": "app/models/product.py",
   "file_content": "from sqlmodel import SQLModel, Field, Relationship\nfrom typing import Optional, TYPE_CHECKING\nfrom datetime import datetime\n\nif TYPE_CHECKING:\n    from .category import Category\n\nclass ProductBase(SQLModel):\n    name: str = Field(max_length=255)\n    price: float = Field(gt=0)\n    category_id: int = Field(foreign_key=\"categories.id\")\n    description: Optional[str] = Field(default=None, max_length=1000)\n\nclass ProductCreate(ProductBase):\n    pass\n\nclass ProductUpdate(SQLModel):\n    name: Optional[str] = Field(default=None, max_length=255)\n    price: Optional[float] = Field(default=None, gt=0)\n    category_id: Optional[int] = Field(default=None)\n    description: Optional[str] = Field(default=None, max_length=1000)\n\nclass Product(ProductBase, table=True):\n    __tablename__ = \"products\"\n    id: Optional[int] = Field(default=None, primary_key=True)\n    created_at: datetime = Field(default_factory=datetime.utcnow)\n    updated_at: Optional[datetime] = Field(default=None)\n    \n    category: Optional[\"Category\"] = Relationship(back_populates=\"products\")"
 }]
 Example 3: Order Module with Multiple References
@@ -60,7 +60,7 @@ Input:
 }
 Expected Output:
 [{
-  "file_path": "backend/app/models/order.py",
+  "file_path": "app/models/order.py",
   "file_content": "from sqlmodel import SQLModel, Field, Relationship\nfrom typing import Optional, TYPE_CHECKING\nfrom datetime import datetime\n\nif TYPE_CHECKING:\n    from .user import User\n    from .product import Product\n\nclass OrderBase(SQLModel):\n    user_id: int = Field(foreign_key=\"users.id\")\n    product_id: int = Field(foreign_key=\"products.id\")\n    quantity: int = Field(gt=0)\n    total_amount: float = Field(gt=0)\n    order_date: Optional[datetime] = Field(default_factory=datetime.utcnow)\n    status: str = Field(default=\"pending\", max_length=50)\n\nclass OrderCreate(OrderBase):\n    pass\n\nclass OrderUpdate(SQLModel):\n    user_id: Optional[int] = Field(default=None)\n    product_id: Optional[int] = Field(default=None)\n    quantity: Optional[int] = Field(default=None, gt=0)\n    total_amount: Optional[float] = Field(default=None, gt=0)\n    order_date: Optional[datetime] = Field(default=None)\n    status: Optional[str] = Field(default=None, max_length=50)\n\nclass Order(OrderBase, table=True):\n    __tablename__ = \"orders\"\n    id: Optional[int] = Field(default=None, primary_key=True)\n    created_at: datetime = Field(default_factory=datetime.utcnow)\n    updated_at: Optional[datetime] = Field(default=None)\n    \n    user: Optional[\"User\"] = Relationship(back_populates=\"orders\")\n    product: Optional[\"Product\"] = Relationship(back_populates=\"orders\")"
 }]
 Task
@@ -73,7 +73,7 @@ Module Specification Format
   ]
 }
 Project Structure
-backend/
+
 ├── app/
 │   ├── core/
 │   │   ├── config.py
@@ -102,21 +102,21 @@ backend/
 Requirements
 Generate 4 files following the exact patterns from the examples:
 
-backend/app/models/{module_name}.py - SQLModel with Base, Create, Update, and main model classes
+app/models/{module_name}.py - SQLModel with Base, Create, Update, and main model classes
 
 Include proper table name and model configuration
 Add proper field types and constraints
 Include relationships if specified in ref
 
 
-backend/app/schemas/{module_name}.py - Pydantic schemas for Create, Read, and Update operations
+app/schemas/{module_name}.py - Pydantic schemas for Create, Read, and Update operations
 
 Include proper field validation
 Add example values for OpenAPI documentation
 Handle optional and required fields correctly
 
 
-backend/app/services/{module_name}_service.py - Service layer with CRUD operations
+app/services/{module_name}_service.py - Service layer with CRUD operations
 
 Implement create, read, update, delete operations
 Add proper error handling
@@ -124,7 +124,7 @@ Include pagination for list operations
 Add filtering capabilities
 
 
-backend/app/api/v1/routes/{module_name}.py - FastAPI router with all CRUD endpoints
+app/api/v1/routes/{module_name}.py - FastAPI router with all CRUD endpoints
 
 Include proper route tags and descriptions
 Add response models and status codes

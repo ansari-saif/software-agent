@@ -10,7 +10,7 @@ export async function writeFiles(files: FileContent[], projectId: string): Promi
   for (const file of files) {
     try {
       // Create the project-specific directory path
-      const projectPath = path.join(process.cwd(), 'generated', projectId);
+      const projectPath =  "/tmp/stich-worker/"
       const fullPath = path.join(projectPath, file.file_path);
       
       // Ensure the directory exists
