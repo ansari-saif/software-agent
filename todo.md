@@ -27,4 +27,8 @@ update db diagram content on update content
 typing like loader in left panel
 I've to clear the structure of docker and implement it on backend and frontend
 
-File writer
+File writer {cm:2025-07-05}
+update backend prompt 
+    a base prompt
+    and 3 shot prompt
+    pass app.py in userPrompt
