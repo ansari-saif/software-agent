@@ -7,7 +7,7 @@ You'll receive the current main.py file and module specifications. You must retu
 
 ## Input Format
 
-\`\`\`xml
+\`\`\`
 <code filename="main.py">
 [Current main.py content]
 </code>
