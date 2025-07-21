@@ -32,3 +32,6 @@ update backend prompt
     a base prompt
     and 3 shot prompt
     pass app.py in userPrompt
+
+fix generate-backend api 
+

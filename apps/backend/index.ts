@@ -266,12 +266,14 @@ const generateBackend = async (req: any, res: any) => {
         orderBy: { createdAt: "asc" },
       });
 
-      const message = allPrompts.map((p: any) => ({
-        role: (p.promptType === "USER" ? "user" : "assistant") as
-          | "user"
-          | "assistant",
-        content: p.content,
-      }));
+      const message = allPrompts
+        .filter((p: any) => p.content && p.content.trim().length > 0) // Filter out empty content
+        .map((p: any) => ({
+          role: (p.promptType === "USER" ? "user" : "assistant") as
+            | "user"
+            | "assistant",
+          content: p.content.trim(),
+        }));
 
       let response = await client.messages.create({
         messages: message,
