@@ -29,9 +29,13 @@ I've to clear the structure of docker and implement it on backend and frontend
 
 File writer {cm:2025-07-05}
 update backend prompt 
-    a base prompt
+    a base prompt {cm:2025-07-26}
     and 3 shot prompt
     pass app.py in userPrompt
 
 fix generate-backend api 
+    identification -- output getting in wrong format so that getting black artifact so that getting black output
 
+solution {cm:2025-07-26}
+    1. return with error {cm:2025-07-26}
+    2. fix problem {cm:2025-07-26}

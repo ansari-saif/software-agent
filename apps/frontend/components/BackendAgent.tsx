@@ -274,16 +274,14 @@ export default function BackendAgent({
         </div>
       </div>
 
-      {/* API Documentation Section */}
+      {/* Code Server Section */}
       <div className="w-2/3 text-white bg-gray-800 overflow-y-auto relative">
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center text-gray-400">
-            <p>API Documentation</p>
-            <p className="text-sm mt-2">
-              API endpoints and documentation will appear here
-            </p>
-          </div>
-        </div>
+        <iframe
+          src="http://localhost:8443/?folder=/tmp/stich-worker"
+          className="w-full h-full border-0"
+          title="Code Server"
+          style={{ minHeight: 'calc(100vh - 64px)' }}
+        />
       </div>
     </div>
   );

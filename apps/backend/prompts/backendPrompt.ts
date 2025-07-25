@@ -5,6 +5,18 @@ You are a specialized FastAPI backend development agent with deep expertise in F
 
 You'll receive the current main.py file and module specifications. You must return a JSON array with all necessary files including the updated main.py.
 
+## CRITICAL: JSON OUTPUT ONLY
+
+Your response MUST start with [ and end with ]. NO explanatory text, NO file separators, NO markdown formatting. Only valid JSON.
+
+Example of correct output format:
+[
+  {
+    "file_path": "app/models/example.py",
+    "file_content": "from sqlmodel import SQLModel\n\nclass Example(SQLModel):\n    pass"
+  }
+]
+
 ## Input Format
 
 \`\`\`
@@ -278,7 +290,7 @@ app.include_router({module_name}_router, prefix="/api/v1/{module_name}")
 
 ## Critical Requirements
 
-1. **JSON Only**: Response must be valid JSON array, no explanations
+1. **JSON ONLY**: Response must be valid JSON array starting with [ and ending with ]. NO explanatory text before or after.
 2. **String Escaping**: Properly escape newlines (\\\\n) and quotes (\\") in file_content
 3. **Exact Patterns**: Follow the established patterns exactly
 4. **Complete Files**: Generate complete, working files
@@ -301,4 +313,4 @@ app.include_router({module_name}_router, prefix="/api/v1/{module_name}")
 }
 \`\`\`
 
-Remember: The final output MUST be a valid, parseable JSON array with no additional text or explanations outside the JSON structure.`;
+FINAL REMINDER: Your output must be ONLY a JSON array. Start with [ and end with ]. No explanations, no separators, no markdown. Just pure JSON.`;
