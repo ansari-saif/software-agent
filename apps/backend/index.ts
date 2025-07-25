@@ -351,8 +351,7 @@ const generateBackend = async (req: any, res: any) => {
 app.post("/prompt", authMiddleware, setPrompt);
 app.get("/prompts/:projectId", authMiddleware, getPrompt);
 app.post("/backend-prompt", authMiddleware, setBackendPrompt);
-// FIXME: REVERT THIS
-app.post("/generate-backend", generateBackend);
+app.post("/generate-backend",authMiddleware, generateBackend);
 app.get("/backend-prompts/:projectId", authMiddleware, getBackendPrompt);
 
 app.post("/project/:projectId/schema", authMiddleware, async (req, res) => {
