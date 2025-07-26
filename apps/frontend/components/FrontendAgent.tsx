@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Code2 } from "lucide-react";
 import { toast } from "sonner";
+import { useGenerateFrontend } from "@/app/hooks/useGenerateFrontend";
 
 interface FrontendAgentProps {
   projectId: string; // Used for API calls to identify the project context
@@ -29,6 +30,7 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
   const [prompts, setPrompts] = useState<OptimisticPrompt[]>([]);
   const [activeTab, setActiveTab] = useState<'codeserver' | 'docs'>('codeserver');
   
+  const { generateFrontend, isGenerating } = useGenerateFrontend(projectId);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
@@ -41,6 +43,21 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
   useEffect(() => {
     scrollToBottom();
   }, [optimisticPrompt, prompts]);
+
+  const handleGenerateFrontend = async () => {
+    try {
+      await generateFrontend();
+      // Add a system message about successful generation
+      const systemMessage: OptimisticPrompt = {
+        id: Date.now().toString(),
+        content: "Frontend code has been generated successfully. You can now start customizing and extending the components.",
+        promptType: "ASSISTANT"
+      };
+      setPrompts(prev => [...prev, systemMessage]);
+    } catch (error) {
+      console.error('Frontend generation failed:', error);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!prompt.trim() || isSubmitting) return;
@@ -132,12 +149,39 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
           className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
           style={{ color: "#f3f4f6" }}
         >
-          {prompts.map(renderPromptMessage)}
-
-          {isSubmitting && !optimisticPrompt && (
-            <div className="flex justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-white" />
+          {prompts.length === 0 ? (
+            <div className="flex flex-col justify-center items-center h-32 gap-3">
+              <Button
+                onClick={handleGenerateFrontend}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-4 py-2 transition-all duration-200 hover:opacity-90"
+                style={{ backgroundColor: theme.accent }}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Code2 className="h-4 w-4" />
+                    <span>Generate Frontend</span>
+                  </>
+                )}
+              </Button>
+              <p className="text-sm text-gray-400 text-center max-w-xs">
+                Start by generating the frontend components and structure for your application
+              </p>
             </div>
+          ) : (
+            <>
+              {prompts.map(renderPromptMessage)}
+              {isSubmitting && !optimisticPrompt && (
+                <div className="flex justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                </div>
+              )}
+            </>
           )}
         </div>
 

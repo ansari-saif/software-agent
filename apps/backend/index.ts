@@ -343,6 +343,204 @@ app.post("/backend-prompt", authMiddleware, setBackendPrompt);
 app.post("/generate-backend",authMiddleware, generateBackend);
 app.get("/backend-prompts/:projectId", authMiddleware, getBackendPrompt);
 
+const getFrontendPrompt = async (req: any, res: any) => {
+  const { projectId } = req.params;
+  const prompts = await prismaClient.frontendPrompt.findMany({
+    where: { projectId },
+    orderBy: { createdAt: "asc" },
+  });
+  res.json(prompts);
+};
+
+const setFrontendPrompt = async (req: any, res: any) => {
+  let { prompt, projectId } = req.body;
+  prompt = prompt.trim();
+
+  const client = new Anthropic();
+  const project = await prismaClient.project.findUnique({
+    where: {
+      id: projectId,
+    },
+  });
+  if (!project) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+  const promptDb = await prismaClient.frontendPrompt.create({
+    data: {
+      content: prompt,
+      projectId,
+      promptType: "USER",
+    },
+  });
+
+  const allPrompts = await prismaClient.frontendPrompt.findMany({
+    where: { projectId },
+    orderBy: { createdAt: "asc" },
+  });
+  let artifactProcessor = new ArtifactProcessor(
+    "",
+    (schema) => onSchema(schema),
+    (summery) => onSummery(summery)
+  );
+  const message = allPrompts.map((p: any) => ({
+    role: (p.promptType === "USER" ? "user" : "assistant") as
+      | "user"
+      | "assistant",
+    content: p.content,
+  }));
+  let response = await client.messages.create({
+    messages: message,
+    system: systemPrompt("frontend"),
+    model: "claude-3-7-sonnet-20250219",
+    max_tokens: 2000,
+  });
+
+  // Concatenate all text content blocks from the response
+  let artifact = "";
+  if (response && Array.isArray(response.content)) {
+    for (const block of response.content) {
+      if (block.type === "text") {
+        artifact += block.text + "\n";
+      }
+    }
+  }
+  artifact = artifact.trim();
+  artifactProcessor.append(artifact);
+  artifactProcessor.parse();
+
+  await prismaClient.frontendPrompt.create({
+    data: {
+      content: artifact,
+      projectId,
+      promptType: "AGENT",
+    },
+  });
+  onPromptEnd(promptDb.id);
+
+  res.json({ response });
+};
+
+const generateFrontend = async (req: any, res: any) => {
+  let { projectId } = req.body;
+
+  try {
+    const client = new Anthropic();
+    const project = await prismaClient.project.findUnique({
+      where: {
+        id: projectId,
+      },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    // Get the project's schema to generate frontend
+    const schema = project.schema as any[];
+    if (!schema) {
+      res
+        .status(400)
+        .json({ error: "Project schema is required for frontend generation" });
+      return;
+    }
+    
+    for (let index = 0; index < schema.length; index++) {
+      const element = JSON.stringify(schema[index]);
+
+      // Create initial prompt for frontend generation
+      const initialPrompt = `Generate a complete frontend implementation based on this schema: ${element}`;
+
+      const promptDb = await prismaClient.frontendPrompt.create({
+        data: {
+          content: initialPrompt,
+          projectId,
+          promptType: "USER",
+        },
+      });
+
+      const allPrompts = await prismaClient.frontendPrompt.findMany({
+        where: { projectId },
+        orderBy: { createdAt: "asc" },
+      });
+
+      const message = allPrompts
+        .filter((p: any) => p.content && p.content.trim().length > 0) // Filter out empty content
+        .map((p: any) => ({
+          role: (p.promptType === "USER" ? "user" : "assistant") as
+            | "user"
+            | "assistant",
+          content: p.content.trim(),
+        }));
+
+      let response = await client.messages.create({
+        messages: message,
+        system: systemPrompt("frontend"),
+        model: "claude-3-7-sonnet-20250219",
+        max_tokens: 4000,
+      });
+
+      // Parse and process the AI response
+      let files: Array<{ file_path: string; file_content: string }> = [];
+
+      if (response && Array.isArray(response.content)) {
+        for (const block of response.content) {
+          if (block.type === "text") {
+            try {
+              // Try to parse the content as JSON
+              const fileData = JSON.parse(block.text);
+              files = [...files, ...fileData];
+            } catch (e) {
+              // If not JSON, append to the current response
+              console.log("Non-JSON response block:", block.text);
+            }
+          }
+        }
+      }
+
+      if (files.length === 0) {
+        res.status(400).json({ error: "No files generated" });
+        return;
+      }
+      // Write the files to disk
+      if (files.length > 0) {
+        await writeFiles(files, projectId, "frontend");
+      }
+
+      // Store the complete response in the database
+      const artifactContent = files
+        .map((f) => `File: ${f.file_path}\n\n${f.file_content}\n\n---\n\n`)
+        .join("");
+
+      await prismaClient.frontendPrompt.create({
+        data: {
+          content: artifactContent,
+          projectId,
+          promptType: "AGENT",
+        },
+      });
+
+      onPromptEnd(promptDb.id);
+    }
+    res.json({
+      message: "Frontend generated successfully",
+      projectId,
+    });
+  } catch (error) {
+    console.error("Error in frontend generation:", error);
+    res.status(500).json({
+      error: "Failed to generate frontend",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+app.post("/frontend-prompt", authMiddleware, setFrontendPrompt);
+// FIXME : ADD AUTH 
+app.post("/generate-frontend", generateFrontend);
+app.get("/frontend-prompts/:projectId", authMiddleware, getFrontendPrompt);
+
 app.post("/project/:projectId/schema", authMiddleware, async (req, res) => {
   const { projectId } = req.params;
   const { schema } = req.body;
