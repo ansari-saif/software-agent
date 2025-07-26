@@ -1,20 +1,37 @@
-version: '3.8'
 
 services:
-  code-server:
+  # code-server:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+
+  #   image: code-server-backend
+  #   container_name: code-server-backend
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - DEFAULT_WORKSPACE=/tmp/stich-worker
+  #   ports:
+  #     - "8443:8443"
+  #     - "8000:8000"
+  #   volumes:
+  #     - /tmp/stich-worker:/tmp/stich-worker
+  #     - /tmp/stich-config:/config
+  
+  code-server-frontend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.frontend
 
-    image: code-server-update
-    container_name: code-server
+    image: code-server-frontend
+    container_name: code-server-frontend
     environment:
       - PUID=1000
       - PGID=1000
-      - DEFAULT_WORKSPACE=/tmp/stich-worker
+      - DEFAULT_WORKSPACE=/tmp/stich-worker-frontend
     ports:
-      - "8443:8443"
-      - "8000:8000"
+      - "8444:8443"
+      - "5173:5173"
     volumes:
-      - /tmp/stich-worker:/tmp/stich-worker
+      - /tmp/stich-worker-frontend:/tmp/stich-worker-frontend
       - /tmp/stich-config:/config

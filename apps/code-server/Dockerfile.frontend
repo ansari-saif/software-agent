@@ -1,0 +1,51 @@
+FROM lscr.io/linuxserver/code-server:latest
+
+USER root
+
+# Install Node.js and npm
+RUN apt-get update --fix-missing && \
+    apt-get install -y --no-install-recommends \
+        curl gnupg && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends \
+        nodejs && \
+    npm install -g pnpm && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+
+
+RUN mkdir -p /template \
+    && git clone https://github.com/ansari-saif/frontend-template.git /template \
+    && chown -R abc:abc /template
+
+# Install Node.js dependencies
+WORKDIR /template
+
+# Set up config directory structure
+RUN mkdir -p /config && \
+    mkdir -p /config/data/User && \
+    mkdir -p /config/.config && \
+    mkdir -p /config/.local && \
+    mkdir -p /config/workspace && \
+    mkdir -p /config/extensions && \
+    mkdir -p /config/.ssh && \
+    chown -R abc:abc /config && \
+    chmod -R 755 /config
+
+COPY entrypoint-frontend.sh /entrypoint-frontend.sh
+RUN chmod +x /entrypoint-frontend.sh
+
+USER abc
+
+# Install dependencies using pnpm (or npm if package-lock.json exists)
+RUN if [ -f "pnpm-lock.yaml" ]; then \
+        pnpm install; \
+    elif [ -f "package-lock.json" ]; then \
+        npm ci; \
+    else \
+        npm install; \
+    fi
+
+USER root
+ENTRYPOINT ["/entrypoint-frontend.sh"]
