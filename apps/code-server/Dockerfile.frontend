@@ -14,7 +14,6 @@ RUN apt-get update --fix-missing && \
     rm -rf /var/lib/apt/lists/*
 
 
-
 RUN mkdir -p /template \
     && git clone https://github.com/ansari-saif/frontend-template.git /template \
     && chown -R abc:abc /template
@@ -39,13 +38,7 @@ RUN chmod +x /entrypoint-frontend.sh
 USER abc
 
 # Install dependencies using pnpm (or npm if package-lock.json exists)
-RUN if [ -f "pnpm-lock.yaml" ]; then \
-        pnpm install; \
-    elif [ -f "package-lock.json" ]; then \
-        npm ci; \
-    else \
-        npm install; \
-    fi
+RUN  npm ci
 
 USER root
 ENTRYPOINT ["/entrypoint-frontend.sh"]
