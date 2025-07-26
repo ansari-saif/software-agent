@@ -9,7 +9,7 @@ import { systemPrompt } from "./systemPrompt";
 import { DbmlGeneratorService } from "./services/dbmlGenerator";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
-import { Module, isModuleArray } from "./types/dbml";
+import { isModuleArray } from "./types/dbml";
 import { writeFiles } from "./utils/fileWriter";
 
 dotenv.config();
