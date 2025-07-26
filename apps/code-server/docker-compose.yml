@@ -1,6 +1,6 @@
 
 services:
-  code-server:
+  code-server-backend:
     build:
       context: .
       dockerfile: Dockerfile

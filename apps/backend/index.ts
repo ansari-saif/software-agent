@@ -240,25 +240,14 @@ const generateBackend = async (req: any, res: any) => {
     }
 
     // Get the project's schema to generate backend
-    // const schema = project.schema as any[];
-    // if (!schema) {
-    //   res
-    //     .status(400)
-    //     .json({ error: "Project schema is required for backend generation" });
-    //   return;
-    // }
-    const schema = [{
-      fields: [
-        { name: "title", type: "string" },
-        { name: "description", type: "string" },
-        { name: "due_date", type: "datetime" },
-        { name: "priority", type: "integer" },
-        { name: "completed", type: "boolean" },
-        { ref: "user", name: "user_id" },
-        { ref: "category", name: "category_id" },
-      ],
-      module: "tasks",
-    }];
+    const schema = project.schema as any[];
+    if (!schema) {
+      res
+        .status(400)
+        .json({ error: "Project schema is required for backend generation" });
+      return;
+    }
+    
     for (let index = 0; index < schema.length; index++) {
       const element = JSON.stringify(schema[index]);
 

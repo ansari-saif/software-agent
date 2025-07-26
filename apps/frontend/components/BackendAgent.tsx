@@ -327,6 +327,7 @@ export default function BackendAgent({
               className="w-full border-0"
               title="Code Server"
               style={{ height: 'calc(100vh - 64px - 56px)' }}
+              allow="clipboard-read; clipboard-write"
             />
           )}
           {activeTab === 'docs' && (
@@ -338,6 +339,7 @@ export default function BackendAgent({
                 height: 'calc(100vh - 64px - 56px)',
                 filter: 'invert(0.9) hue-rotate(180deg)'
               }}
+              allow="clipboard-read; clipboard-write"
             />
           )}
         </div>
