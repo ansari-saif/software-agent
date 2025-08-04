@@ -7,6 +7,7 @@ import { ArtifactProcessor } from "./parser";
 import { onPromptEnd, onSchema, onSummery } from "./os";
 import { systemPrompt } from "./systemPrompt";
 import { DbmlGeneratorService } from "./services/dbmlGenerator";
+import { OpenApiProcessor } from "./services/openApiProcessor";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import { isModuleArray } from "./types/dbml";
@@ -343,6 +344,7 @@ app.post("/backend-prompt", authMiddleware, setBackendPrompt);
 app.post("/generate-backend",authMiddleware, generateBackend);
 app.get("/backend-prompts/:projectId", authMiddleware, getBackendPrompt);
 
+
 const getFrontendPrompt = async (req: any, res: any) => {
   const { projectId } = req.params;
   const prompts = await prismaClient.frontendPrompt.findMany({
@@ -541,6 +543,7 @@ app.post("/frontend-prompt", authMiddleware, setFrontendPrompt);
 app.post("/generate-frontend", generateFrontend);
 app.get("/frontend-prompts/:projectId", authMiddleware, getFrontendPrompt);
 
+
 app.post("/project/:projectId/schema", authMiddleware, async (req, res) => {
   const { projectId } = req.params;
   const { schema } = req.body;
@@ -687,6 +690,76 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
   }
 });
 
+// New API endpoint to process OpenAPI data
+
+const processOpenApi = async (req: any, res: any) => {
+  const { projectId } = req.params;
+
+  try {
+    // Get project details
+    const project = await prismaClient.project.findUnique({
+      where: { id: projectId },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    // Get OpenAPI data from project
+    const openApiData = project.openApi;
+    if (!openApiData) {
+      res.status(404).json({ error: "OpenAPI data not found for this project" });
+      return;
+    }
+
+    // Initialize OpenAPI structure if it doesn't exist
+    let openApiStructure = openApiData as any;
+    if (!OpenApiProcessor.isValidOpenApiStructure(openApiStructure)) {
+      openApiStructure = OpenApiProcessor.initializeOpenApiStructure(project.description || "API");
+    }
+
+    // Get schema data from project
+    const schemaData = project.schema;
+    if (!schemaData) {
+      res.status(400).json({ error: "Project schema is required for OpenAPI processing" });
+      return;
+    }
+
+    // Process the OpenAPI data using the service
+    const processedOpenApi = OpenApiProcessor.processOpenApiData(schemaData as any, openApiStructure);
+
+    // Store the processed OpenAPI data back to the project
+    const updatedProject = await prismaClient.project.update({
+      where: { id: projectId },
+      data: { openApi: processedOpenApi as any },
+    });
+    // Write the files to disk
+    if (processedOpenApi) {
+      await writeFiles([{
+        file_path:"openapi.json",
+        file_content:JSON.stringify(processedOpenApi)
+      }], projectId, "frontend");
+    }
+
+    res.json({
+      message: "OpenAPI data processed and stored successfully",
+      projectId,
+      openApi: processedOpenApi
+    });
+
+  } catch (error) {
+    console.error("Error processing OpenAPI data:", error);
+    res.status(500).json({
+      error: "Failed to process OpenAPI data",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}
+
+
+// FIXME : ADD AUTH 
+app.post("/project/:projectId/process-openapi", processOpenApi);
 app.listen(8080, () => {
   console.log("Server is rurnning on port 8080");
 });

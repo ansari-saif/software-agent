@@ -24,6 +24,7 @@ model Project {
   updatedAt   DateTime @updatedAt
   userId      String
   schema      Json?
+  openApi      Json?
   prompts     Prompt[]
   backendPrompts BackendPrompt[]
   frontendPrompts FrontendPrompt[]
