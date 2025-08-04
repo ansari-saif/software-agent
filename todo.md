@@ -33,9 +33,12 @@ update backend prompt
     and 3 shot prompt
     pass app.py in userPrompt
 
-fix generate-backend api 
-    identification -- output getting in wrong format so that getting black artifact so that getting black output
+fix generate-backend api {cm:2025-08-04}
+    identification -- output getting in wrong format so that getting black artifact so that getting black output {cm:2025-08-04}
 
 solution {cm:2025-07-26}
     1. return with error {cm:2025-07-26}
     2. fix problem {cm:2025-07-26}
+
+now I've to integration process process-openapi api integration on frontend agent
+and figure out how do i run command in the agent terminal 
