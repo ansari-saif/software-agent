@@ -1,57 +1,69 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-      {
-        "label": "Start Frontend",
-        "type": "shell",
-        "command": "pnpm dev",
-        "options": {
-          "cwd": "apps/frontend"
-        },
-        "problemMatcher": []
-    },
-      {
-        "label": "Start Backend",
-        "type": "shell",
-        "command": "pnpm dev",
-        "options": {
-          "cwd": "apps/backend"
-        },
-        "problemMatcher": []
-      },
-      {
-        "label": "Start Prisma Studio",
-        "type": "shell",
-        "command": "pnpx prisma studio",
-        "options": {
-          "cwd": "packages/db"
-        },
-        "problemMatcher": []
-      },
-      {
-        "label": "Start Code Server",
-        "type": "shell",
-        "command": "docker compose up",
-        "options": {
-          "cwd": "apps/code-server"
-        },
-        "problemMatcher": []
-      },
-      {
-        "label": "Start All Services",
-        "dependsOn": [
-          "Start Frontend",
-          "Start Backend",
-          "Start Prisma Studio",
-          "Start Code Server"
-        ],
-        "dependsOrder": "parallel",
-        "problemMatcher": [],
-        "group": {
-          "kind": "build",
-          "isDefault": true
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Frontend",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev"],
+      "options": {
+        "cwd": "apps/frontend",
+        "env": {
+          "PATH": "${env:PATH}:/Users/saif/.local/state/fnm_multishells/74858_1755325687422/bin"
         }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Backend",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev"],
+      "options": {
+        "cwd": "apps/backend",
+        "env": {
+          "PATH": "${env:PATH}:/Users/saif/.local/state/fnm_multishells/74858_1755325687422/bin"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Prisma Studio",
+      "type": "shell",
+      "command": "pnpx",
+      "args": ["prisma", "studio"],
+      "options": {
+        "cwd": "packages/db",
+        "env": {
+          "PATH": "${env:PATH}:/Users/saif/.local/state/fnm_multishells/74858_1755325687422/bin"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Code Server",
+      "type": "shell",
+      "command": "docker",
+      "args": ["compose", "up"],
+      "options": {
+        "cwd": "apps/code-server"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start All Services",
+      "dependsOn": [
+        "Start Frontend",
+        "Start Backend",
+        "Start Prisma Studio",
+        "Start Code Server"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
       }
-    ]
-  }
-  
+    }
+  ]
+}

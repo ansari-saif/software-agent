@@ -42,3 +42,7 @@ solution {cm:2025-07-26}
 
 now I've to integration process process-openapi api integration on frontend agent
 and figure out how do i run command in the agent terminal 
+    I can run command on that folder 
+        for node is easy 
+        I've to check for python 
+        
