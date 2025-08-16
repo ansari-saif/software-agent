@@ -45,4 +45,4 @@ and figure out how do i run command in the agent terminal {cm:2025-08-16}
     I can run command on that folder {cm:2025-08-16}
         for node is easy {cm:2025-08-16}
         I've to check for python 
-        
+Now I've to fix generate frontend code

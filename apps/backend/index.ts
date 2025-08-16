@@ -24,8 +24,7 @@ if (!process.env.DBDIAGRAM_API_TOKEN) {
 }
 
 const DBDIAGRAM_API_TOKEN = process.env.DBDIAGRAM_API_TOKEN;
-
-app.post("/project", authMiddleware, async (req, res) => {
+const createProject = async (req: any, res: any) => {
   const { prompt } = req.body;
   const userId = req.userId!;
   const description = prompt.split(" ").slice(0, 2).join(" ");
@@ -35,18 +34,15 @@ app.post("/project", authMiddleware, async (req, res) => {
   res.json({
     projectId: project.id,
   });
-});
-
-app.post("/projects", authMiddleware, async (req, res) => {
+}
+const getProjects = async (req: any, res: any) => {
   const userId = req.userId!;
   const projects = await prismaClient.project.findMany({
     where: { userId },
   });
-
   res.json(projects);
-});
-
-app.get("/project/:projectId", authMiddleware, async (req, res) => {
+}
+const getProjectDetails = async (req: any, res: any) => {
   const { projectId } = req.params;
   const userId = req.userId!;
 
@@ -71,7 +67,7 @@ app.get("/project/:projectId", authMiddleware, async (req, res) => {
     console.error("Failed to fetch project:", error);
     res.status(500).json({ error: "Failed to fetch project" });
   }
-});
+}
 const setPrompt = async (req: any, res: any) => {
   let { prompt, projectId } = req.body;
   prompt = prompt.trim();
@@ -341,11 +337,7 @@ const generateBackend = async (req: any, res: any) => {
     });
   }
 };
-app.post("/prompt", authMiddleware, setPrompt);
-app.get("/prompts/:projectId", authMiddleware, getPrompt);
-app.post("/backend-prompt", authMiddleware, setBackendPrompt);
-app.post("/generate-backend", authMiddleware, generateBackend);
-app.get("/backend-prompts/:projectId", authMiddleware, getBackendPrompt);
+
 
 const getFrontendPrompt = async (req: any, res: any) => {
   const { projectId } = req.params;
@@ -540,12 +532,7 @@ const generateFrontend = async (req: any, res: any) => {
   }
 };
 
-app.post("/frontend-prompt", authMiddleware, setFrontendPrompt);
-// FIXME : ADD AUTH
-app.post("/generate-frontend", generateFrontend);
-app.get("/frontend-prompts/:projectId", authMiddleware, getFrontendPrompt);
-
-app.post("/project/:projectId/schema", authMiddleware, async (req, res) => {
+const projectSchema = async (req: any, res: any) => {
   const { projectId } = req.params;
   const { schema } = req.body;
 
@@ -559,9 +546,8 @@ app.post("/project/:projectId/schema", authMiddleware, async (req, res) => {
     console.error("Failed to update project schema:", error);
     res.status(500).json({ error: "Failed to update project schema" });
   }
-});
-
-app.post("/project/:projectId/generate-dbml", async (req, res) => {
+}
+const generateDbml = async (req: any, res: any) => {
   const { projectId } = req.params;
 
   try {
@@ -689,7 +675,7 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
           : "Failed to generate DBML diagram",
     });
   }
-});
+}
 
 const processOpenApiInternal = async (projectId: string) => {
   try {
@@ -774,9 +760,23 @@ const processOpenApi = async (req: any, res: any) => {
     });
   }
 };
+app.post("/project", authMiddleware, createProject);
+app.post("/projects", authMiddleware, getProjects);
+app.post("/prompt", authMiddleware, setPrompt);
+app.get("/prompts/:projectId", authMiddleware, getPrompt);
+app.post("/backend-prompt", authMiddleware, setBackendPrompt);
+app.post("/generate-backend", authMiddleware, generateBackend);
+app.get("/backend-prompts/:projectId", authMiddleware, getBackendPrompt);
+app.post("/frontend-prompt", authMiddleware, setFrontendPrompt);
+app.get("/frontend-prompts/:projectId", authMiddleware, getFrontendPrompt);
+app.get("/project/:projectId", authMiddleware, getProjectDetails);
+app.post("/project/:projectId/schema", authMiddleware, projectSchema);
+app.post("/project/:projectId/generate-dbml", generateDbml);
 
 // FIXME : ADD AUTH
 app.post("/project/:projectId/process-openapi", processOpenApi);
+// FIXME : ADD AUTH
+app.post("/generate-frontend", generateFrontend);
 app.listen(8080, () => {
   console.log("Server is rurnning on port 8080");
 });
