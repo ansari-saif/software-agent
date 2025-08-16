@@ -419,6 +419,7 @@ const setFrontendPrompt = async (req: any, res: any) => {
 
 const generateFrontend = async (req: any, res: any) => {
   let { projectId } = req.body;
+  
 
   try {
     const client = new Anthropic();
@@ -474,7 +475,7 @@ const generateFrontend = async (req: any, res: any) => {
         messages: message,
         system: systemPrompt("frontend"),
         model: "claude-3-7-sonnet-20250219",
-        max_tokens: 4000,
+        max_tokens: 8000,
       });
 
       // Parse and process the AI response
