@@ -11,7 +11,7 @@ import { OpenApiProcessor } from "./services/openApiProcessor";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import { isModuleArray } from "./types/dbml";
-import { writeFiles } from "./utils/fileWriter";
+import { runProjectCommand, writeFiles } from "./utils/fileWriter";
 
 dotenv.config();
 
@@ -248,7 +248,7 @@ const generateBackend = async (req: any, res: any) => {
         .json({ error: "Project schema is required for backend generation" });
       return;
     }
-    
+
     for (let index = 0; index < schema.length; index++) {
       const element = JSON.stringify(schema[index]);
 
@@ -326,9 +326,9 @@ const generateBackend = async (req: any, res: any) => {
 
       onPromptEnd(promptDb.id);
     }
-    
+
     await processOpenApiInternal(projectId);
-    
+
     res.json({
       message: "Backend generated successfully",
       projectId,
@@ -344,9 +344,8 @@ const generateBackend = async (req: any, res: any) => {
 app.post("/prompt", authMiddleware, setPrompt);
 app.get("/prompts/:projectId", authMiddleware, getPrompt);
 app.post("/backend-prompt", authMiddleware, setBackendPrompt);
-app.post("/generate-backend",authMiddleware, generateBackend);
+app.post("/generate-backend", authMiddleware, generateBackend);
 app.get("/backend-prompts/:projectId", authMiddleware, getBackendPrompt);
-
 
 const getFrontendPrompt = async (req: any, res: any) => {
   const { projectId } = req.params;
@@ -450,7 +449,7 @@ const generateFrontend = async (req: any, res: any) => {
         .json({ error: "Project schema is required for frontend generation" });
       return;
     }
-    
+
     for (let index = 0; index < schema.length; index++) {
       const element = JSON.stringify(schema[index]);
 
@@ -542,10 +541,9 @@ const generateFrontend = async (req: any, res: any) => {
 };
 
 app.post("/frontend-prompt", authMiddleware, setFrontendPrompt);
-// FIXME : ADD AUTH 
+// FIXME : ADD AUTH
 app.post("/generate-frontend", generateFrontend);
 app.get("/frontend-prompts/:projectId", authMiddleware, getFrontendPrompt);
-
 
 app.post("/project/:projectId/schema", authMiddleware, async (req, res) => {
   const { projectId } = req.params;
@@ -693,7 +691,6 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
   }
 });
 
-
 const processOpenApiInternal = async (projectId: string) => {
   try {
     // Get project details
@@ -716,7 +713,9 @@ const processOpenApiInternal = async (projectId: string) => {
     // Initialize OpenAPI structure if it doesn't exist
     let openApiStructure = openApiData as any;
     if (!OpenApiProcessor.isValidOpenApiStructure(openApiStructure)) {
-      openApiStructure = OpenApiProcessor.initializeOpenApiStructure(project.description || "API");
+      openApiStructure = OpenApiProcessor.initializeOpenApiStructure(
+        project.description || "API"
+      );
     }
 
     // Get schema data from project
@@ -727,22 +726,31 @@ const processOpenApiInternal = async (projectId: string) => {
     }
 
     // Process the OpenAPI data using the service
-    const processedOpenApi = OpenApiProcessor.processOpenApiData(schemaData as any, openApiStructure);
+    const processedOpenApi = OpenApiProcessor.processOpenApiData(
+      schemaData as any,
+      openApiStructure
+    );
 
     // Store the processed OpenAPI data back to the project
     await prismaClient.project.update({
       where: { id: projectId },
       data: { openApi: processedOpenApi as any },
     });
-    
+
     // Write the files to disk
     if (processedOpenApi) {
-      await writeFiles([{
-        file_path:"openapi.json",
-        file_content:JSON.stringify(processedOpenApi)
-      }], projectId, "frontend");
+      await writeFiles(
+        [
+          {
+            file_path: "openapi.json",
+            file_content: JSON.stringify(processedOpenApi),
+          },
+        ],
+        projectId,
+        "frontend"
+      );
+      await runProjectCommand("npm run generate-client", projectId, "frontend");
     }
-
   } catch (error) {
     console.error("Error processing OpenAPI data:", error);
   }
@@ -752,13 +760,12 @@ const processOpenApi = async (req: any, res: any) => {
   const { projectId } = req.params;
 
   try {
-    await processOpenApiInternal(projectId);
-    
+    processOpenApiInternal(projectId);
+
     res.json({
       message: "OpenAPI data processed and stored successfully",
-      projectId
+      projectId,
     });
-
   } catch (error) {
     console.error("Error processing OpenAPI data:", error);
     res.status(500).json({
@@ -766,10 +773,9 @@ const processOpenApi = async (req: any, res: any) => {
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }
-}
+};
 
-
-// FIXME : ADD AUTH 
+// FIXME : ADD AUTH
 app.post("/project/:projectId/process-openapi", processOpenApi);
 app.listen(8080, () => {
   console.log("Server is rurnning on port 8080");

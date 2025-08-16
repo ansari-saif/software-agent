@@ -11,17 +11,17 @@ Introduce artifact and Store in db. --cancelled {cm:2025-06-23}
 Make cleaner UI and implement iframe in the UI. {cm:2025-06-23}
 create a env for backend and fronted
     backend template {cm:2025-06-26}
-    frontend template
-    docker setup for backend 
-        vscode setup
-    docker setup for frontend 
-        vscode setup
-display vscode in right bar with that content
-create backend api where you've to create whole fastapi files according to that json (same like you were doing in ai master repo)
-generate opnApi Spec file from that json
+    frontend template {cm:2025-08-16}
+    docker setup for backend {cm:2025-08-16}
+        vscode setup {cm:2025-08-16}
+    docker setup for frontend {cm:2025-08-16}
+        vscode setup {cm:2025-08-16}
+display vscode in right bar with that content {cm:2025-08-16}
+create backend api where you've to create whole fastapi files according to that json (same like you were doing in ai master repo) {cm:2025-08-16}
+generate opnApi Spec file from that json {cm:2025-08-16}
 generate frontend client from that openApi Spec file {cm:2025-06-26}
 and generate frontend according to that (same frontend as you've using in ai master)
-research about my main dashboard
+research about my main dashboard {cm:2025-08-16}
 improve dbml generator code with intense testing 
 update db diagram content on update content
 typing like loader in left panel
@@ -40,9 +40,9 @@ solution {cm:2025-07-26}
     1. return with error {cm:2025-07-26}
     2. fix problem {cm:2025-07-26}
 
-now I've to integration process process-openapi api integration on frontend agent
-and figure out how do i run command in the agent terminal 
-    I can run command on that folder 
-        for node is easy 
+now I've to integration process process-openapi api integration on frontend agent {cm:2025-08-16}
+and figure out how do i run command in the agent terminal {cm:2025-08-16}
+    I can run command on that folder {cm:2025-08-16}
+        for node is easy {cm:2025-08-16}
         I've to check for python 
         
