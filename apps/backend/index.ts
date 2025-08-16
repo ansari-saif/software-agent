@@ -326,6 +326,9 @@ const generateBackend = async (req: any, res: any) => {
 
       onPromptEnd(promptDb.id);
     }
+    
+    await processOpenApiInternal(projectId);
+    
     res.json({
       message: "Backend generated successfully",
       projectId,
@@ -690,11 +693,8 @@ app.post("/project/:projectId/generate-dbml", async (req, res) => {
   }
 });
 
-// New API endpoint to process OpenAPI data
 
-const processOpenApi = async (req: any, res: any) => {
-  const { projectId } = req.params;
-
+const processOpenApiInternal = async (projectId: string) => {
   try {
     // Get project details
     const project = await prismaClient.project.findUnique({
@@ -702,14 +702,14 @@ const processOpenApi = async (req: any, res: any) => {
     });
 
     if (!project) {
-      res.status(404).json({ error: "Project not found" });
+      console.error("Project not found");
       return;
     }
 
     // Get OpenAPI data from project
     const openApiData = project.openApi;
     if (!openApiData) {
-      res.status(404).json({ error: "OpenAPI data not found for this project" });
+      console.error("OpenAPI data not found for this project");
       return;
     }
 
@@ -722,7 +722,7 @@ const processOpenApi = async (req: any, res: any) => {
     // Get schema data from project
     const schemaData = project.schema;
     if (!schemaData) {
-      res.status(400).json({ error: "Project schema is required for OpenAPI processing" });
+      console.error("Project schema is required for OpenAPI processing");
       return;
     }
 
@@ -730,10 +730,11 @@ const processOpenApi = async (req: any, res: any) => {
     const processedOpenApi = OpenApiProcessor.processOpenApiData(schemaData as any, openApiStructure);
 
     // Store the processed OpenAPI data back to the project
-    const updatedProject = await prismaClient.project.update({
+    await prismaClient.project.update({
       where: { id: projectId },
       data: { openApi: processedOpenApi as any },
     });
+    
     // Write the files to disk
     if (processedOpenApi) {
       await writeFiles([{
@@ -742,10 +743,20 @@ const processOpenApi = async (req: any, res: any) => {
       }], projectId, "frontend");
     }
 
+  } catch (error) {
+    console.error("Error processing OpenAPI data:", error);
+  }
+};
+
+const processOpenApi = async (req: any, res: any) => {
+  const { projectId } = req.params;
+
+  try {
+    await processOpenApiInternal(projectId);
+    
     res.json({
       message: "OpenAPI data processed and stored successfully",
-      projectId,
-      openApi: processedOpenApi
+      projectId
     });
 
   } catch (error) {
