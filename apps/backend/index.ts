@@ -12,12 +12,16 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 import { isModuleArray } from "./types/dbml";
 import { runProjectCommand, writeFiles } from "./utils/fileWriter";
+import { addModule } from "./services/addModuleAts";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+function toTitleCase(str: string) {
+  return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+}
 
 if (!process.env.DBDIAGRAM_API_TOKEN) {
   throw new Error("DBDIAGRAM_API_TOKEN environment variable is required");
@@ -419,7 +423,7 @@ const setFrontendPrompt = async (req: any, res: any) => {
 
 const generateFrontend = async (req: any, res: any) => {
   let { projectId } = req.body;
-  
+
 
   try {
     const client = new Anthropic();
@@ -444,6 +448,7 @@ const generateFrontend = async (req: any, res: any) => {
     }
 
     for (let index = 0; index < schema.length; index++) {
+      const moduleName = schema[index].module;
       const element = JSON.stringify(schema[index]);
 
       // Create initial prompt for frontend generation
@@ -503,6 +508,20 @@ const generateFrontend = async (req: any, res: any) => {
       // Write the files to disk
       if (files.length > 0) {
         await writeFiles(files, projectId, "frontend");
+        const routerPath = "src/App.tsx";
+        const menuPath = "src/config/navigation.ts";
+        if (project.routeCode && project.menuCode){
+          // const { router, menu } = ModuleManager.add(project.routeCode, project.menuCode, './pages/'+toTitleCase(moduleName), toTitleCase(moduleName), moduleName.toLowerCase());
+          const { router, menu } = addModule(project.routeCode, project.menuCode, './pages/'+toTitleCase(moduleName), toTitleCase(moduleName),'/' + moduleName.toLowerCase());
+          await writeFiles([{ file_path: routerPath, file_content: router }, { file_path: menuPath, file_content: menu }], projectId, "frontend");
+          await prismaClient.project.update({
+            where: { id: projectId },
+            data: { routeCode: router, menuCode: menu },
+          });
+        }else{
+          console.error("Route or menu code not found");
+        }
+        
       }
 
       // Store the complete response in the database

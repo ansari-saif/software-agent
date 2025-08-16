@@ -24,6 +24,8 @@ model Project {
   updatedAt   DateTime @updatedAt
   userId      String
   schema      Json?
+  routeCode      String?
+  menuCode      String?
   openApi      Json?
   prompts     Prompt[]
   backendPrompts BackendPrompt[]
