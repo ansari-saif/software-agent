@@ -711,10 +711,7 @@ const processOpenApiInternal = async (projectId: string) => {
 
     // Get OpenAPI data from project
     const openApiData = project.openApi;
-    if (!openApiData) {
-      console.error("OpenAPI data not found for this project");
-      return;
-    }
+    
 
     // Initialize OpenAPI structure if it doesn't exist
     let openApiStructure = openApiData as any;

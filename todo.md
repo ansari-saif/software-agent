@@ -46,3 +46,14 @@ and figure out how do i run command in the agent terminal {cm:2025-08-16}
         for node is easy {cm:2025-08-16}
         I've to check for python 
 Now I've to fix generate frontend code
+Check whether my code running command or not 
+
+fix Linting Error (hardcode all clients methods-> delete not working)
+e2e test1 : successfully ran db 
+            `optional` import error in backend 
+                able to generate only for one module imports for app, menu insead of two (imported patiet and ,doctor X)
+                and unable to process openApi things
+            unable to generate frontend code 
+                too much errors 
+                delete not working taking wrong name for delete
+                using components which are not exits 

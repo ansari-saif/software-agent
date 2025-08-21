@@ -22,6 +22,10 @@ export interface OpenApiStructure {
     version: string;
     description: string;
   };
+  servers?: Array<{
+    url: string;
+    description: string;
+  }>;
   paths: Record<string, any>;
   components: {
     schemas: Record<string, any>;
@@ -307,6 +311,8 @@ export class OpenApiProcessor {
    * Initialize a new OpenAPI structure
    */
   static initializeOpenApiStructure(projectTitle: string = "API"): OpenApiStructure {
+    const baseUrl = process.env.API_BASE_URL || "http://localhost:8000";
+    
     return {
       "openapi": "3.0.0",
       "info": {
@@ -314,6 +320,12 @@ export class OpenApiProcessor {
         "version": "1.0.0",
         "description": "API documentation generated from project schema"
       },
+      "servers": [
+        {
+          "url": baseUrl,
+          "description": "Local server"
+        }
+      ],
       "paths": {},
       "components": {
         "schemas": {}

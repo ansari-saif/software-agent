@@ -24,8 +24,8 @@ model Project {
   updatedAt   DateTime @updatedAt
   userId      String
   schema      Json?
-  routeCode      String?
-  menuCode      String?
+  routeCode      String @default("import React from \"react\";\nimport { BrowserRouter as Router, Route, Routes } from \"react-router-dom\";\nimport HomePage from \"./components/HomePage\";\n\nconst App: React.FC = () => {\n  return (\n    <Router>\n      <Routes>\n        <Route path=\"/\" element={<HomePage />} />\n      </Routes>\n    </Router>\n  );\n};\n\nexport default App;")
+  menuCode      String @default("import { CheckSquare, Home, LucideIcon, File } from \"lucide-react\"\n\nexport interface MenuItem {\n  name: string\n  href: string\n  icon: LucideIcon\n}\n\nexport const menuItems: MenuItem[] = [\n  {\n    name: \"Home\",\n    href: \"/\",\n    icon: Home\n  }\n];")
   openApi      Json?
   prompts     Prompt[]
   backendPrompts BackendPrompt[]
