@@ -113,6 +113,7 @@ settings = Settings()
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
 from datetime import datetime
+from decimal import Decimal
 
 class {ModuleName}Base(SQLModel):
     # Base fields from input
@@ -136,9 +137,10 @@ class {ModuleName}Update({ModuleName}Base):
 
 ### 2. Schema File Pattern (app/schemas/{module_name}.py)
 \`\`\`python
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
+from decimal import Decimal
 
 class {ModuleName}Create(BaseModel):
     # Required fields only
@@ -298,6 +300,7 @@ app.include_router({module_name}_router, prefix="/api/v1/{module_name}")
 6. **Error Handling**: Include proper HTTP exceptions
 7. **Type Hints**: Use proper type hints throughout
 8. **Naming Conventions**: Follow Python naming conventions
+9. **Import Verification**: Please verify that all dependencies are imported which you're using in the code
 
 ## Example Field Types
 
@@ -307,10 +310,37 @@ app.include_router({module_name}_router, prefix="/api/v1/{module_name}")
   "fields": [
     {"name": "name", "type": "string"},
     {"name": "age", "type": "integer"},
-    {"name": "profile", "type": "text"},
+    {"name": "profile", "type": "string"},
     {"name": "company_id", "type": "integer", "ref": "company"}
   ]
 }
 \`\`\`
 
-FINAL REMINDER: Your output must be ONLY a JSON array. Start with [ and end with ]. No explanations, no separators, no markdown. Just pure JSON.`;
+FINAL REMINDER: Your output must be ONLY a JSON array. Start with [ and end with ]. No explanations, no separators, no markdown. Just pure JSON.
+CRITICAL: JSON OUTPUT ONLY
+you've to response in the json in this format 
+here is the json-schema for your response
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "array",
+  "description": "A list of files, where each item represents a file with its path and content.",
+  "items": {
+    "type": "object",
+    "description": "An object representing a single file.",
+    "properties": {
+      "file_path": {
+        "type": "string",
+        "description": "The relative or absolute path of the file."
+      },
+      "file_content": {
+        "type": "string",
+        "description": "The content of the file as a string."
+      }
+    },
+    "required": [
+      "file_path",
+      "file_content"
+    ]
+  }
+}
+`;

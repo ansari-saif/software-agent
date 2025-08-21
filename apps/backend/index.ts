@@ -224,6 +224,7 @@ const setBackendPrompt = async (req: any, res: any) => {
 
   res.json({ response });
 };
+
 const generateBackend = async (req: any, res: any) => {
   let { projectId } = req.body;
 
@@ -281,7 +282,7 @@ const generateBackend = async (req: any, res: any) => {
         messages: message,
         system: systemPrompt("backend"),
         model: "claude-3-7-sonnet-20250219",
-        max_tokens: 4000,
+        max_tokens: 8000,
       });
 
       // Parse and process the AI response
@@ -782,13 +783,15 @@ app.post("/projects", authMiddleware, getProjects);
 app.post("/prompt", authMiddleware, setPrompt);
 app.get("/prompts/:projectId", authMiddleware, getPrompt);
 app.post("/backend-prompt", authMiddleware, setBackendPrompt);
-app.post("/generate-backend", authMiddleware, generateBackend);
 app.get("/backend-prompts/:projectId", authMiddleware, getBackendPrompt);
 app.post("/frontend-prompt", authMiddleware, setFrontendPrompt);
 app.get("/frontend-prompts/:projectId", authMiddleware, getFrontendPrompt);
 app.get("/project/:projectId", authMiddleware, getProjectDetails);
 app.post("/project/:projectId/schema", authMiddleware, projectSchema);
 app.post("/project/:projectId/generate-dbml", generateDbml);
+
+// FIXME : ADD AUTH
+app.post("/generate-backend", generateBackend);
 
 // FIXME : ADD AUTH
 app.post("/project/:projectId/process-openapi", processOpenApi);

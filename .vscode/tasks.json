@@ -51,12 +51,30 @@
       "problemMatcher": []
     },
     {
+      "label": "Run DB",
+      "type": "shell",
+      "command": "open",
+      "args": ["-a", "Docker"],
+      "options": {},
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Docker Container",
+      "type": "shell",
+      "command": "docker",
+      "args": ["start", "my-docker"],
+      "options": {},
+      "problemMatcher": []
+    },
+    {
       "label": "Start All Services",
       "dependsOn": [
         "Start Frontend",
         "Start Backend",
         "Start Prisma Studio",
-        "Start Code Server"
+        "Start Code Server",
+        "Start Docker Container",
+        "Run DB"
       ],
       "dependsOrder": "parallel",
       "problemMatcher": [],
