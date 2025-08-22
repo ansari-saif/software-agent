@@ -301,6 +301,7 @@ app.include_router({module_name}_router, prefix="/api/v1/{module_name}")
 7. **Type Hints**: Use proper type hints throughout
 8. **Naming Conventions**: Follow Python naming conventions
 9. **Import Verification**: Please verify that all dependencies are imported which you're using in the code
+10. ** Check You've imported Option dependencies in the code from typing
 
 ## Example Field Types
 

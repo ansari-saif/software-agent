@@ -428,7 +428,7 @@ const generateFrontend = async (req: any, res: any) => {
 
   try {
     const client = new Anthropic();
-    const project = await prismaClient.project.findUnique({
+    let project = await prismaClient.project.findUnique({
       where: {
         id: projectId,
       },
@@ -512,7 +512,15 @@ const generateFrontend = async (req: any, res: any) => {
         const routerPath = "src/App.tsx";
         const menuPath = "src/config/navigation.ts";
         if (project.routeCode && project.menuCode){
-          // const { router, menu } = ModuleManager.add(project.routeCode, project.menuCode, './pages/'+toTitleCase(moduleName), toTitleCase(moduleName), moduleName.toLowerCase());
+          let project = await prismaClient.project.findUnique({
+            where: {
+              id: projectId,
+            },
+          });
+          if (!project) {
+            res.status(404).json({ error: "Project not found" });
+            return;
+          }
           const { router, menu } = addModule(project.routeCode, project.menuCode, './pages/'+toTitleCase(moduleName), toTitleCase(moduleName),'/' + moduleName.toLowerCase());
           await writeFiles([{ file_path: routerPath, file_content: router }, { file_path: menuPath, file_content: menu }], projectId, "frontend");
           await prismaClient.project.update({

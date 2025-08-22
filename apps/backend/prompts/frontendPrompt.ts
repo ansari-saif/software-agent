@@ -34,6 +34,19 @@ Everything goes in the single page file.
 ## Project Structure
 src/
 └── pages/{ModuleName}.tsx
+example: 
+1. 
+ModuleName = product
+path = src/pages/Product.tsx
+
+2. 
+ModuleName = category
+path = src/pages/Category.tsx
+
+3. 
+ModuleName = user
+path = src/pages/User.tsx
+
 
 ## Dependencies (use only these)
 - React 18 + TypeScript

@@ -37,8 +37,8 @@ RUN chmod +x /entrypoint-frontend.sh
 
 USER abc
 
-# Install dependencies using pnpm (or npm if package-lock.json exists)
-RUN  npm ci
+# Install dependencies - force clean install to avoid lock file sync issues
+RUN npm install --force
 
 USER root
 ENTRYPOINT ["/entrypoint-frontend.sh"]

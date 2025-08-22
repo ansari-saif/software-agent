@@ -50,10 +50,11 @@ Check whether my code running command or not
 
 fix Linting Error (hardcode all clients methods-> delete not working)
 e2e test1 : successfully ran db 
-            `optional` import error in backend 
-                able to generate only for one module imports for app, menu insead of two (imported patiet and ,doctor X)
-                and unable to process openApi things
-            unable to generate frontend code 
-                too much errors 
-                delete not working taking wrong name for delete
-                using components which are not exits 
+            `optional` import error in backend {cm:2025-08-22}
+                able to generate only for one module imports for app, menu insead of two (imported patiet and ,doctor X) {cm:2025-08-22}
+                and unable to process openApi things {cm:2025-08-22}
+            unable to generate frontend code {cm:2025-08-22}
+                too much errors {cm:2025-08-22}
+                delete not working taking wrong name for delete {cm:2025-08-22}
+                using components which are not exits {cm:2025-08-22}
+check multiple module writing of router and menu file for frontend 
