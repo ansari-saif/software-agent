@@ -282,7 +282,7 @@ const generateBackend = async (req: any, res: any) => {
         messages: message,
         system: systemPrompt("backend"),
         model: "claude-3-7-sonnet-20250219",
-        max_tokens: 8000,
+        max_tokens: 16000,
       });
 
       // Parse and process the AI response

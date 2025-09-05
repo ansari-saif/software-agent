@@ -1,84 +1,248 @@
-# Turborepo starter
+# Software Agent Platform - Comprehensive Project Summary
 
-This Turborepo starter is maintained by the Turborepo core team.
+## Project Overview
+**Software Agent** is an AI-powered platform designed to automate the Software Development Life Cycle (SDLC) by generating complete applications from natural language prompts. The platform uses multiple specialized AI agents to handle different aspects of application development including database design, backend API generation, and frontend UI creation.
 
-## Using this example
+## Architecture & Technology Stack
 
-Run the following command:
+### Monorepo Structure (Turborepo)
+- **Build System**: Turborepo with pnpm workspace
+- **Package Manager**: pnpm@9.0.0
+- **Node Version**: >=18
+- **Language**: TypeScript throughout
 
-```sh
-npx create-turbo@latest
-```
+### Core Applications
 
-## What's inside?
+#### 1. Frontend Application (`apps/frontend/`)
+- **Framework**: Next.js 15.1.8 with React 19
+- **Styling**: Tailwind CSS with shadcn/ui components
+- **Authentication**: Clerk
+- **UI Libraries**: 
+  - Framer Motion for animations
+  - Lucide React for icons
+  - Sonner for notifications
+- **Key Features**:
+  - Multi-agent interface (DB, Backend, Frontend)
+  - Real-time project management
+  - Interactive prompt system
+  - Project history sidebar
+  - Agent-specific theming
 
-This Turborepo includes the following packages/apps:
+#### 2. Backend Application (`apps/backend/`)
+- **Framework**: Express.js with TypeScript
+- **AI Integration**: Anthropic Claude API
+- **Database**: PostgreSQL with Prisma ORM
+- **Key Services**:
+  - DBML generation service
+  - OpenAPI specification processor
+  - File writer utility
+  - Docker integration
+- **Dependencies**:
+  - Dockerode for container management
+  - js-yaml for YAML processing
+  - node-fetch for HTTP requests
 
-### Apps and Packages
+#### 3. Database Package (`packages/db/`)
+- **ORM**: Prisma
+- **Database**: PostgreSQL
+- **Schema**: Comprehensive project management with prompts, schemas, and artifacts
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## Core Functionality
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+### 1. Multi-Agent Architecture
+The platform operates with three specialized AI agents:
 
-### Utilities
+#### Database Agent
+- **Purpose**: Generates database schemas from natural language descriptions
+- **Output**: JSON schema → DBML → Visual diagrams
+- **Integration**: dbdiagram.io API for diagram generation
+- **Features**:
+  - Schema validation
+  - Relationship mapping
+  - Visual diagram rendering
 
-This Turborepo has some additional tools already setup for you:
+#### Backend Agent
+- **Purpose**: Generates FastAPI backend applications
+- **Framework**: FastAPI with SQLModel
+- **Output**: Complete CRUD APIs with proper structure
+- **Features**:
+  - Model generation
+  - API route creation
+  - Service layer implementation
+  - Database integration
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+#### Frontend Agent
+- **Purpose**: Generates React TypeScript frontend applications
+- **Framework**: React 18 + TypeScript + Vite
+- **UI Library**: shadcn/ui components
+- **Features**:
+  - CRUD interfaces
+  - TanStack Table integration
+  - Form validation
+  - Responsive design
 
-### Build
+### 2. Workflow Process
 
-To build all apps and packages, run the following command:
+1. **Project Creation**: User creates a new project with a description
+2. **Prompt Processing**: Natural language prompt is processed by the appropriate agent
+3. **Schema Generation**: Database agent generates JSON schema and DBML
+4. **API Generation**: Backend agent creates FastAPI application
+5. **UI Generation**: Frontend agent creates React application
+6. **File Management**: Generated files are written to temporary directories
+7. **Execution**: Commands are run to test and validate generated code
 
-```
-cd my-turborepo
-pnpm build
-```
+### 3. Database Schema
 
-### Develop
+#### Core Models
+- **User**: Authentication and user management
+- **Project**: Main project entity with metadata
+- **Prompt**: Stores user and agent prompts
+- **BackendPrompt/FrontendPrompt**: Specialized prompt types
 
-To develop all apps and packages, run the following command:
+#### Key Fields
+- `schema`: JSON storage for generated database schemas
+- `dbml_id` & `dbml_diagram_id`: External diagram service IDs
+- `routeCode` & `menuCode`: Generated frontend routing and navigation
+- `openApi`: OpenAPI specification storage
 
-```
-cd my-turborepo
-pnpm dev
-```
+## Key Services & Utilities
 
-### Remote Caching
+### 1. DBML Generator Service
+- Converts JSON schemas to DBML format
+- Handles field type mapping
+- Generates proper relationships
+- Adds standard fields (id, timestamps)
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+### 2. OpenAPI Processor
+- Converts schemas to OpenAPI 3.0 specifications
+- Generates complete API documentation
+- Creates CRUD endpoint definitions
+- Handles request/response schemas
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+### 3. File Writer Utility
+- Manages file creation in temporary directories
+- Supports both backend and frontend file types
+- Handles directory structure creation
+- Executes project commands (npm install, etc.)
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+### 4. Prompt Management
+- Specialized prompts for each agent type
+- Structured input/output formats
+- JSON-only responses for consistency
+- Error handling and validation
 
-```
-cd my-turborepo
-npx turbo login
-```
+## Development Status & Current Issues
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+### Completed Features
+- ✅ Multi-agent architecture
+- ✅ Database schema generation
+- ✅ DBML diagram integration
+- ✅ Basic file generation
+- ✅ Project management system
+- ✅ Authentication integration
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+### In Progress/Issues (from todo.md)
+- 🔄 Stream message removal
+- 🔄 DB diagram method research
+- 🔄 Schema generation improvements
+- 🔄 Backend API generation fixes
+- 🔄 Frontend code generation issues
+- 🔄 Docker setup for both frontend/backend
+- 🔄 VSCode integration
+- 🔄 OpenAPI processing integration
+- 🔄 Linting error fixes
+- 🔄 E2E testing improvements
 
-```
-npx turbo link
-```
+### Known Issues
+1. **Backend Generation**: Import errors and module handling
+2. **Frontend Generation**: Component existence and delete functionality
+3. **OpenAPI Processing**: Integration with frontend agent
+4. **Docker Setup**: Incomplete containerization
+5. **Command Execution**: Terminal integration challenges
 
-## Useful Links
+## Technical Challenges
 
-Learn more about the power of Turborepo:
+### 1. AI Response Parsing
+- Ensuring consistent JSON output from AI agents
+- Handling malformed responses
+- Error recovery mechanisms
 
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+### 2. File System Management
+- Temporary file organization
+- Project isolation
+- Cleanup procedures
+
+### 3. Code Generation Quality
+- Linting and formatting
+- Type safety
+- Best practices enforcement
+
+### 4. Integration Complexity
+- Multiple service coordination
+- State management across agents
+- Real-time updates
+
+## Future Roadmap
+
+### Short Term
+1. Fix current generation issues
+2. Complete Docker setup
+3. Implement VSCode integration
+4. Improve error handling
+
+### Medium Term
+1. Add more AI models support
+2. Implement code review features
+3. Add testing generation
+4. Improve UI/UX
+
+### Long Term
+1. Multi-language support
+2. Advanced code analysis
+3. Performance optimization
+4. Enterprise features
+
+## Security & Best Practices
+
+### Current Implementation
+- JWT authentication
+- User isolation
+- Input validation
+- Environment variable management
+
+### Areas for Improvement
+- Rate limiting
+- Input sanitization
+- Audit logging
+- Security scanning
+
+## Performance Considerations
+
+### Current Optimizations
+- Turborepo caching
+- Prisma connection pooling
+- Efficient file operations
+
+### Potential Improvements
+- Response streaming
+- Background processing
+- Caching strategies
+- Resource optimization
+
+## Conclusion
+
+The Software Agent platform represents an ambitious attempt to automate the entire SDLC using AI agents. While the core architecture is solid and the multi-agent approach is innovative, there are significant challenges in ensuring code quality, handling edge cases, and maintaining consistency across different generation phases.
+
+The project shows promise as a development automation tool but requires substantial work to address current issues and improve reliability before it can be considered production-ready.
+
+**Key Strengths:**
+- Well-architected monorepo structure
+- Innovative multi-agent approach
+- Comprehensive database design
+- Modern tech stack
+
+**Key Challenges:**
+- AI response reliability
+- Code generation quality
+- Integration complexity
+- Error handling robustness

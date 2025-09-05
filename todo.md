@@ -57,4 +57,17 @@ e2e test1 : successfully ran db
                 too much errors {cm:2025-08-22}
                 delete not working taking wrong name for delete {cm:2025-08-22}
                 using components which are not exits {cm:2025-08-22}
-check multiple module writing of router and menu file for frontend 
+check multiple module writing of router and menu file for frontend {cm:2025-08-22}
+
+xml format instead json
+i've to context about all methods available for backend integration
+testing code gen
+commit history for ever success code gen
+
+
+ref: will convex db in the future releases
+I'll reach out that if anyone starting new business then contact me
+improve ui
+reach out
+start posting
+better auth

@@ -67,7 +67,7 @@ const Prompt = () => {
     <div>
       <Textarea
         className="bg-gray-900 text-white"
-        placeholder="Create a chess application ..."
+        placeholder="Create a inventory management application ..."
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={(e) => {
