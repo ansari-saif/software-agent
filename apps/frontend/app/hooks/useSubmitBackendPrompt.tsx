@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-import { BACKEND_URL } from "../config";
+// import { BACKEND_URL } from "../config";
 import { useAuth } from "@clerk/nextjs";
 import { OptimisticPrompt } from "@/types/prompt";
 
@@ -18,7 +18,7 @@ export function useSubmitBackendPrompt(projectId: string) {
     try {
       const token = await getToken();
       const response = await axios.post<OptimisticPrompt>(
-        `${BACKEND_URL}/backend-prompt`,
+        `http://localhost:9091/prompt`,
         {
           projectId,
           prompt: content,
