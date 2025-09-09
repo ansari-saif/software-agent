@@ -7,9 +7,10 @@ export async function onFileUpdate(
   filePath: string,
   fileContent: string,
   projectId: string,
-  promptId: string
+  promptId: string,
+  agentType: "backend" | "frontend" = "backend"
 ) {
-  await writeFiles([{ file_path: filePath, file_content: fileContent }], projectId);
+  await writeFiles([{ file_path: filePath, file_content: fileContent }], projectId, agentType);
   console.log(`Updated file ${filePath}`);
 
   await prismaClient.action.create({
@@ -24,7 +25,8 @@ export async function onFileUpdate(
 export async function onShellCommand(
   shellCommand: string,
   projectId: string,
-  promptId: string
+  promptId: string,
+  agentType: "backend" | "frontend" = "backend"
 ) {
   //npm run build && npm run start
   const commands = shellCommand.split("&&");
