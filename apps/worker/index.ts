@@ -40,16 +40,26 @@ app.post("/generate-backend", async (req, res) => {
 
     // Create initial prompt for backend generation
     const initialPrompt = `Generate a complete backend implementation based on this schema: ${element}`;
-    const promptDb = await prismaClient.backendPrompt.create({
+    
+    const promptDb = await prismaClient.prompt.create({
       data: {
         content: initialPrompt,
+        agentType: "BACKEND",
         projectId,
         promptType: "USER",
       },
     });
-
-    const allPrompts = await prismaClient.backendPrompt.findMany({
-      where: { projectId },
+    console.log("promptDb.id", promptDb.id)
+    await prismaClient.action.create({
+      data: {
+        content: initialPrompt,
+        projectId,
+        promptId: promptDb.id,
+        promptType: "USER",
+      },
+    });
+    const allPrompts = await prismaClient.prompt.findMany({
+      where: { projectId, agentType: "BACKEND" },
       orderBy: { createdAt: "asc" },
     });
     let artifactProcessor = new ArtifactProcessor(
@@ -77,21 +87,22 @@ app.post("/generate-backend", async (req, res) => {
       })
       .on("finalMessage", async (message) => {
         console.log("done!");
-        await prismaClient.backendPrompt.create({
+        await prismaClient.prompt.create({
           data: {
+             agentType: "BACKEND",
             content: artifact,
             projectId,
             promptType: "AGENT",
           },
         });
 
-        // await prismaClient.action.create({
-        //   data: {
-        //     content: "Done!",
-        //     projectId,
-        //     promptId: promptDb.id,
-        //   },
-        // });
+        await prismaClient.action.create({
+          data: {
+            content: "Done!",
+            projectId,
+            promptId: promptDb.id,
+          },
+        });
         onPromptEnd(promptDb.id);
       })
       .on("error", (error) => {
@@ -113,16 +124,25 @@ app.post("/prompt", async (req, res) => {
     res.status(404).json({ error: "Project not found" });
     return;
   }
-  const promptDb = await prismaClient.backendPrompt.create({
+  const promptDb = await prismaClient.prompt.create({
     data: {
+       agentType: "BACKEND",
       content: prompt,
       projectId,
       promptType: "USER",
     },
   });
+  await prismaClient.action.create({
+    data: {
+      content: prompt,
+      projectId,
+      promptId: promptDb.id,
+      promptType: "USER",
+    },
+  });
 
-  const allPrompts = await prismaClient.backendPrompt.findMany({
-    where: { projectId },
+  const allPrompts = await prismaClient.prompt.findMany({
+    where: { projectId, agentType: "BACKEND" },
     orderBy: { createdAt: "asc" },
   });
   let artifactProcessor = new ArtifactProcessor(
@@ -150,21 +170,22 @@ app.post("/prompt", async (req, res) => {
     })
     .on("finalMessage", async (message) => {
       console.log("done!");
-      await prismaClient.backendPrompt.create({
+      await prismaClient.prompt.create({
         data: {
+           agentType: "BACKEND",
           content: artifact,
           projectId,
           promptType: "AGENT",
         },
       });
 
-      // await prismaClient.action.create({
-      //   data: {
-      //     content: "Done!",
-      //     projectId,
-      //     promptId: promptDb.id,
-      //   },
-      // });
+      await prismaClient.action.create({
+        data: {
+          content: "Done!",
+          projectId,
+          promptId: promptDb.id,
+        },
+      });
       onPromptEnd(promptDb.id);
     })
     .on("error", (error) => {

@@ -28,44 +28,41 @@ model Project {
   menuCode      String @default("import { CheckSquare, Home, LucideIcon, File } from \"lucide-react\"\n\nexport interface MenuItem {\n  name: string\n  href: string\n  icon: LucideIcon\n}\n\nexport const menuItems: MenuItem[] = [\n  {\n    name: \"Home\",\n    href: \"/\",\n    icon: Home\n  }\n];")
   openApi      Json?
   prompts     Prompt[]
-  backendPrompts BackendPrompt[]
-  frontendPrompts FrontendPrompt[]
+  actions     Action[]
 }
 
 enum PromptType {
   USER
   AGENT
 }
-
+enum AgentType {
+  BACKEND
+  FRONTEND
+  DB
+}
 
 model Prompt {
   id        String   @id @default(uuid())
   content String
   projectId String
   promptType PromptType @default(USER)
-  action String?
+  action Action[]
+  agentType AgentType @default(DB)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   project   Project  @relation(fields: [projectId], references: [id])
   
 }
 
-model BackendPrompt {
+model Action {
   id        String   @id @default(uuid())
-  content String
-  projectId String
-  promptType PromptType @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   project   Project  @relation(fields: [projectId], references: [id])
-}
-
-model FrontendPrompt {
-  id        String   @id @default(uuid())
-  content String
+  content   String
+  promptId  String
   projectId String
-  promptType PromptType @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  project   Project  @relation(fields: [projectId], references: [id])
+  agentType AgentType @default(BACKEND)
+  promptType PromptType @default(AGENT)
+  prompt    Prompt   @relation(fields: [promptId], references: [id])
 }

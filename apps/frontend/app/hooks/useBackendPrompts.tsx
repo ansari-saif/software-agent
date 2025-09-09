@@ -18,7 +18,7 @@ export function useBackendPrompts(projectId: string) {
   };
 
   const { data, error, mutate, isLoading } = useSWR(
-    `${BACKEND_URL}/backend-prompts/${projectId}`,
+    `${BACKEND_URL}/actions/${projectId}`,
     fetcher
   );
 

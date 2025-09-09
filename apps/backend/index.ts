@@ -150,12 +150,16 @@ const getPrompt = async (req: any, res: any) => {
 };
 const getBackendPrompt = async (req: any, res: any) => {
   const { projectId } = req.params;
-  const prompts = await prismaClient.backendPrompt.findMany({
-    where: { projectId },
+  const prompts = await prismaClient.prompt.findMany({
+    where: { 
+      projectId,
+      agentType: "BACKEND"
+    },
     orderBy: { createdAt: "asc" },
   });
   res.json(prompts);
 };
+
 const setBackendPrompt = async (req: any, res: any) => {
   let { prompt, projectId } = req.body;
   prompt = prompt.trim();
@@ -170,16 +174,20 @@ const setBackendPrompt = async (req: any, res: any) => {
     res.status(404).json({ error: "Project not found" });
     return;
   }
-  const promptDb = await prismaClient.backendPrompt.create({
+  const promptDb = await prismaClient.prompt.create({
     data: {
       content: prompt,
       projectId,
       promptType: "USER",
+      agentType: "BACKEND"
     },
   });
 
-  const allPrompts = await prismaClient.backendPrompt.findMany({
-    where: { projectId },
+  const allPrompts = await prismaClient.prompt.findMany({
+    where: { 
+      projectId,
+      agentType: "BACKEND"
+    },
     orderBy: { createdAt: "asc" },
   });
   let artifactProcessor = new ArtifactProcessor(
@@ -213,11 +221,12 @@ const setBackendPrompt = async (req: any, res: any) => {
   artifactProcessor.append(artifact);
   artifactProcessor.parse();
 
-  await prismaClient.backendPrompt.create({
+  await prismaClient.prompt.create({
     data: {
       content: artifact,
       projectId,
       promptType: "AGENT",
+      agentType: "BACKEND"
     },
   });
   onPromptEnd(promptDb.id);
@@ -256,16 +265,20 @@ const generateBackend = async (req: any, res: any) => {
       // Create initial prompt for backend generation
       const initialPrompt = `Generate a complete backend implementation based on this schema: ${element}`;
 
-      const promptDb = await prismaClient.backendPrompt.create({
+      const promptDb = await prismaClient.prompt.create({
         data: {
           content: initialPrompt,
           projectId,
           promptType: "USER",
+          agentType: "BACKEND"
         },
       });
 
-      const allPrompts = await prismaClient.backendPrompt.findMany({
-        where: { projectId },
+      const allPrompts = await prismaClient.prompt.findMany({
+        where: { 
+          projectId,
+          agentType: "BACKEND"
+        },
         orderBy: { createdAt: "asc" },
       });
 
@@ -317,11 +330,12 @@ const generateBackend = async (req: any, res: any) => {
         .map((f) => `File: ${f.file_path}\n\n${f.file_content}\n\n---\n\n`)
         .join("");
 
-      await prismaClient.backendPrompt.create({
+      await prismaClient.prompt.create({
         data: {
           content: artifactContent,
           projectId,
           promptType: "AGENT",
+          agentType: "BACKEND"
         },
       });
 
@@ -346,8 +360,11 @@ const generateBackend = async (req: any, res: any) => {
 
 const getFrontendPrompt = async (req: any, res: any) => {
   const { projectId } = req.params;
-  const prompts = await prismaClient.frontendPrompt.findMany({
-    where: { projectId },
+  const prompts = await prismaClient.prompt.findMany({
+    where: { 
+      projectId,
+      agentType: "FRONTEND"
+    },
     orderBy: { createdAt: "asc" },
   });
   res.json(prompts);
@@ -367,16 +384,20 @@ const setFrontendPrompt = async (req: any, res: any) => {
     res.status(404).json({ error: "Project not found" });
     return;
   }
-  const promptDb = await prismaClient.frontendPrompt.create({
+  const promptDb = await prismaClient.prompt.create({
     data: {
       content: prompt,
       projectId,
       promptType: "USER",
+      agentType: "FRONTEND"
     },
   });
 
-  const allPrompts = await prismaClient.frontendPrompt.findMany({
-    where: { projectId },
+  const allPrompts = await prismaClient.prompt.findMany({
+    where: { 
+      projectId,
+      agentType: "FRONTEND"
+    },
     orderBy: { createdAt: "asc" },
   });
   let artifactProcessor = new ArtifactProcessor(
@@ -410,11 +431,12 @@ const setFrontendPrompt = async (req: any, res: any) => {
   artifactProcessor.append(artifact);
   artifactProcessor.parse();
 
-  await prismaClient.frontendPrompt.create({
+  await prismaClient.prompt.create({
     data: {
       content: artifact,
       projectId,
       promptType: "AGENT",
+      agentType: "FRONTEND"
     },
   });
   onPromptEnd(promptDb.id);
@@ -455,16 +477,20 @@ const generateFrontend = async (req: any, res: any) => {
       // Create initial prompt for frontend generation
       const initialPrompt = `Generate a complete frontend implementation based on this schema: ${element}`;
 
-      const promptDb = await prismaClient.frontendPrompt.create({
+      const promptDb = await prismaClient.prompt.create({
         data: {
           content: initialPrompt,
           projectId,
           promptType: "USER",
+          agentType: "FRONTEND"
         },
       });
 
-      const allPrompts = await prismaClient.frontendPrompt.findMany({
-        where: { projectId },
+      const allPrompts = await prismaClient.prompt.findMany({
+        where: { 
+          projectId,
+          agentType: "BACKEND"
+        },
         orderBy: { createdAt: "asc" },
       });
 
@@ -538,11 +564,12 @@ const generateFrontend = async (req: any, res: any) => {
         .map((f) => `File: ${f.file_path}\n\n${f.file_content}\n\n---\n\n`)
         .join("");
 
-      await prismaClient.frontendPrompt.create({
+      await prismaClient.prompt.create({
         data: {
           content: artifactContent,
           projectId,
           promptType: "AGENT",
+          agentType: "FRONTEND"
         },
       });
 
@@ -805,6 +832,29 @@ app.post("/generate-backend", generateBackend);
 app.post("/project/:projectId/process-openapi", processOpenApi);
 // FIXME : ADD AUTH
 app.post("/generate-frontend", generateFrontend);
+
+const getActions = async (req: any, res: any) => {
+  const { projectId } = req.params;
+  const { agentType } = req.query || "BACKEND";
+  
+  try {
+    const actions = await prismaClient.action.findMany({
+      where: { projectId, agentType },
+      orderBy: { createdAt: "desc" },
+      include: {
+        prompt: true
+      }
+    });
+    
+    res.json(actions);
+  } catch (error) {
+    console.error("Failed to fetch actions:", error);
+    res.status(500).json({ error: "Failed to fetch actions" });
+  }
+};
+
+app.get("/actions/:projectId", authMiddleware, getActions);
+
 app.listen(8080, () => {
   console.log("Server is rurnning on port 8080");
 });

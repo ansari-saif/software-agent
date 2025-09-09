@@ -1,4 +1,4 @@
-// import { prismaClient } from "db/client";
+import { prismaClient } from "db/client";
 // import { ProjectType } from "@prisma/client";
 import { writeFiles } from "../backend/utils/fileWriter";
 const BASE_WORKER_DIR = "/tmp/bolty-worker";
@@ -12,13 +12,13 @@ export async function onFileUpdate(
   await writeFiles([{ file_path: filePath, file_content: fileContent }], projectId);
   console.log(`Updated file ${filePath}`);
 
-  // await prismaClient.action.create({
-  //   data: {
-  //     projectId,
-  //     promptId,
-  //     content: `Updated file ${filePath}`,
-  //   },
-  // });
+  await prismaClient.action.create({
+    data: {
+      projectId,
+      promptId,
+      content: `Updated file ${filePath}`,
+    },
+  });
 }
 
 export async function onShellCommand(
@@ -35,13 +35,13 @@ export async function onShellCommand(
     //   cmd: ["sh", "-c", command],
     //   cwd: BASE_WORKER_DIR,
     // });
-    // await prismaClient.action.create({
-    //   data: {
-    //     projectId,
-    //     promptId,
-    //     content: `Ran command: ${command}`,
-    //   },
-    // });
+    await prismaClient.action.create({
+      data: {
+        projectId,
+        promptId,
+        content: `Ran command: ${command}`,
+      },
+    });
   }
 }
 
