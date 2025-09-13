@@ -144,3 +144,164 @@ function testWithMinifiedInput() {
 
 // Uncomment to test
 // testWithMinifiedInput();
+// """
+// Yes 👍
+// Your code right now is **regex-driven**, which works until the input format changes slightly (extra spaces, different import style, multi-line routes, JSX quirks, etc.).
+
+// If you switch to **AST-based parsing with Acorn (or Babel)**, you get a **structural representation** of the code instead of brittle regex matches. That means:
+
+// * Imports are real `ImportDeclaration` nodes, not “lines matching `/import .../`”.
+// * Routes are actual JSX AST nodes (`JSXElement`), not regex hacks.
+// * Menu items are actual object expressions (`ObjectExpression`), not `{...}` substring matches.
+
+// ---
+
+// ### ⚡ How you’d improve this with Acorn (or better, Babel parser)
+
+// ```js
+// import * as parser from "@babel/parser";
+// import traverse from "@babel/traverse";
+// import generate from "@babel/generator";
+// import * as t from "@babel/types";
+
+// export function addModule(routerCode, menuCode, modulePath, componentName, routePath, iconName = "File") {
+//   // ===== ROUTER HANDLING =====
+//   const routerAst = parser.parse(routerCode, {
+//     sourceType: "module",
+//     plugins: ["jsx", "typescript"],
+//   });
+
+//   let hasImport = false;
+//   let hasRoute = false;
+
+//   traverse(routerAst, {
+//     ImportDeclaration(path) {
+//       if (path.node.specifiers.some(spec => spec.local.name === componentName)) {
+//         hasImport = true;
+//       }
+//     },
+//     JSXElement(path) {
+//       const opening = path.node.openingElement;
+//       if (t.isJSXIdentifier(opening.name, { name: "Route" })) {
+//         const pathAttr = opening.attributes.find(
+//           attr => t.isJSXAttribute(attr) && attr.name.name === "path"
+//         );
+//         if (pathAttr && pathAttr.value.value === routePath) {
+//           hasRoute = true;
+//         }
+//       }
+//     },
+//   });
+
+//   if (!hasImport) {
+//     routerAst.program.body.unshift(
+//       t.importDeclaration(
+//         [t.importDefaultSpecifier(t.identifier(componentName))],
+//         t.stringLiteral(modulePath)
+//       )
+//     );
+//   }
+
+//   if (!hasRoute) {
+//     const newRoute = t.jsxElement(
+//       t.jsxOpeningElement(
+//         t.jsxIdentifier("Route"),
+//         [
+//           t.jsxAttribute(t.jsxIdentifier("path"), t.stringLiteral(routePath)),
+//           t.jsxAttribute(
+//             t.jsxIdentifier("element"),
+//             t.jsxExpressionContainer(
+//               t.jsxElement(
+//                 t.jsxOpeningElement(t.jsxIdentifier(componentName), [], true),
+//                 null,
+//                 [],
+//                 true
+//               )
+//             )
+//           ),
+//         ],
+//         true
+//       ),
+//       null,
+//       [],
+//       true
+//     );
+
+//     traverse(routerAst, {
+//       JSXElement(path) {
+//         const opening = path.node.openingElement;
+//         if (t.isJSXIdentifier(opening.name, { name: "Routes" })) {
+//           path.node.children.push(newRoute);
+//           path.stop();
+//         }
+//       },
+//     });
+//   }
+
+//   const updatedRouter = generate(routerAst, { retainLines: true }).code;
+
+//   // ===== MENU HANDLING =====
+//   const menuAst = parser.parse(menuCode, {
+//     sourceType: "module",
+//     plugins: ["typescript"],
+//   });
+
+//   let iconImported = false;
+//   traverse(menuAst, {
+//     ImportDeclaration(path) {
+//       if (path.node.source.value === "lucide-react") {
+//         const already = path.node.specifiers.map(s => s.imported.name);
+//         if (!already.includes(iconName)) {
+//           path.node.specifiers.push(
+//             t.importSpecifier(t.identifier(iconName), t.identifier(iconName))
+//           );
+//         }
+//         iconImported = true;
+//       }
+//     },
+//   });
+
+//   traverse(menuAst, {
+//     VariableDeclarator(path) {
+//       if (path.node.id.name === "menuItems") {
+//         const arr = path.node.init.elements;
+//         const exists = arr.some(el =>
+//           el.properties.some(
+//             p =>
+//               t.isObjectProperty(p) &&
+//               p.key.name === "href" &&
+//               p.value.value === routePath
+//           )
+//         );
+
+//         if (!exists) {
+//           arr.push(
+//             t.objectExpression([
+//               t.objectProperty(t.identifier("name"), t.stringLiteral(componentName)),
+//               t.objectProperty(t.identifier("href"), t.stringLiteral(routePath)),
+//               t.objectProperty(t.identifier("icon"), t.identifier(iconName)),
+//             ])
+//           );
+//         }
+//       }
+//     },
+//   });
+
+//   const updatedMenu = generate(menuAst, { retainLines: true }).code;
+
+//   return { router: updatedRouter, menu: updatedMenu };
+// }
+// ```
+
+// ---
+
+// ### 🔥 Benefits vs your regex approach:
+
+// * **Resilient to formatting** (whitespace, line breaks, minified code, etc.)
+// * **No accidental matches** (regex can mistake `importX` for `import`, or JSX `<RouteX>` for `<Route>`).
+// * **Safe editing** → AST ensures code stays valid JavaScript/TypeScript.
+// * **Scalable** → works even if your project grows, uses JSX/TSX, decorators, etc.
+
+// ---
+
+// """

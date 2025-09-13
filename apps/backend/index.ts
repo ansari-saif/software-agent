@@ -12,7 +12,7 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 import { isModuleArray } from "./types/dbml";
 import { runProjectCommand, writeFiles } from "./utils/fileWriter";
-import { addModule } from "./services/addModuleAts";
+import { addModule } from "./services/addModuleAst";
 
 dotenv.config();
 
