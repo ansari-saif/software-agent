@@ -143,7 +143,7 @@ const setPrompt = async (req: any, res: any) => {
 const getPrompt = async (req: any, res: any) => {
   const { projectId } = req.params;
   const prompts = await prismaClient.prompt.findMany({
-    where: { projectId },
+    where: { projectId , agentType: "DB"},
     orderBy: { createdAt: "asc" },
   });
   res.json(prompts);
@@ -840,7 +840,7 @@ const getActions = async (req: any, res: any) => {
   try {
     const actions = await prismaClient.action.findMany({
       where: { projectId, agentType },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
       include: {
         prompt: true
       }

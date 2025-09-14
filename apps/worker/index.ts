@@ -7,6 +7,7 @@ import { ArtifactProcessor } from "./parser";
 import { onFileUpdate, onPromptEnd, onShellCommand } from "./os";
 import { systemPrompt } from "./systemPrompt";
 import { systemPrompt as systemPromptFrontend } from "./systemPromptFrontend";
+import { systemPrompt as systemPromptDB } from "./systemDBPrompt";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -382,6 +383,94 @@ app.post("/prompt-frontend", async (req, res) => {
 
   res.json({ response });
 });
+
+const setPromptdB = async (req: any, res: any) => {
+  let { prompt, projectId } = req.body;
+  prompt = prompt.trim();
+
+  const client = new Anthropic();
+  const project = await prismaClient.project.findUnique({
+    where: {
+      id: projectId,
+    },
+  });
+  if (!project) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+  const promptDb = await prismaClient.prompt.create({
+    data: {
+      content: prompt,
+      projectId,
+      promptType: "USER",
+      agentType: "DB",
+    },
+  });
+  await prismaClient.action.create({
+    data: {
+      content: prompt,
+      projectId,
+      promptId: promptDb.id,
+      agentType: "DB",
+
+      promptType: "USER",
+    },
+  });
+
+  const allPrompts = await prismaClient.prompt.findMany({
+    where: { projectId },
+    orderBy: { createdAt: "asc" },
+  });
+  let artifactProcessor = new ArtifactProcessor(
+    "",
+    (filePath, fileContent) => (void 0),
+    (shellCommand) => (void 0)
+  );
+  let artifact = "";
+  const messages = allPrompts.map((p: any) => ({
+    role: p.promptType === "USER" ? "user" : "assistant",
+    content: p.content,
+  })) as Array<{ role: "user" | "assistant"; content: string }>;
+  let response = client.messages
+    .stream({
+      messages: messages,
+      system: systemPromptDB(),
+      model: "claude-3-7-sonnet-20250219",
+      max_tokens: 8000,
+    })
+    .on("text", (text) => {
+      artifactProcessor.append(text);
+      artifactProcessor.parse();
+      artifact += text;
+    })
+    .on("finalMessage", async (message) => {
+      console.log("done!");
+      await prismaClient.prompt.create({
+        data: {
+           agentType: "DB",
+          content: artifact,
+          projectId,
+          promptType: "AGENT",
+        },
+      });
+
+      await prismaClient.action.create({
+        data: {
+          content: "Done!",
+          agentType: "DB",
+          projectId,
+          promptId: promptDb.id,
+        },
+      });
+      onPromptEnd(promptDb.id);
+    })
+    .on("error", (error) => {
+      console.log("error", error);
+    });
+
+  res.json({ response });
+};
+app.post("/prompt-db", setPromptdB);
 
 app.listen(9091, () => {
   console.log("Server is running on port 9091");

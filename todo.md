@@ -71,3 +71,18 @@ improve ui
 reach out
 start posting
 better auth
+
+
+// hey as db schema is working fine 
+// so we'll do sb shema bad me 
+
+
+# todo : 
+frontend not working 
+fix 
+1. when you click generate button 
+    first time kuch bata nahi chalta kya chalrha hai 
+    fit that thing
+        frontend 
+        backend
+2. on referesh state maintain nahi ho rahi 
