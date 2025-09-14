@@ -4,7 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Code2 } from "lucide-react";
 import { toast } from "sonner";
 import { useGenerateFrontend } from "@/app/hooks/useGenerateFrontend";
-
+import { useFrontendPrompts } from "@/app/hooks/useFrontendPrompts";
+import { OptimisticPrompt } from "@/types/prompt";
 interface FrontendAgentProps {
   projectId: string; // Used for API calls to identify the project context
   theme: {
@@ -15,19 +16,19 @@ interface FrontendAgentProps {
   };
 }
 
-type OptimisticPrompt = {
-  id: string;
-  content: string;
-  promptType: "USER" | "ASSISTANT";
-};
-
 export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) {
+  const {
+    prompts,
+    mutate,
+    isLoading: isLoadingPrompts,
+    error: promptsError,
+  } = useFrontendPrompts(projectId);
+  
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _projectId = projectId; // Will be used in future API implementation
   const [prompt, setPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [optimisticPrompt, setOptimisticPrompt] = useState<OptimisticPrompt | null>(null);
-  const [prompts, setPrompts] = useState<OptimisticPrompt[]>([]);
   const [activeTab, setActiveTab] = useState<'codeserver' | 'docs'>('codeserver');
   
   const { generateFrontend, isGenerating } = useGenerateFrontend(projectId);
@@ -53,7 +54,7 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
         content: "Frontend code has been generated successfully. You can now start customizing and extending the components.",
         promptType: "ASSISTANT"
       };
-      setPrompts(prev => [...prev, systemMessage]);
+      mutate([...(prompts || []), systemMessage], false);
     } catch (error) {
       console.error('Frontend generation failed:', error);
     }
@@ -73,7 +74,7 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
     };
 
     setOptimisticPrompt(newPrompt);
-    setPrompts(prev => [...prev, newPrompt]);
+    mutate([...(prompts || []), newPrompt], false);
 
     // Clear input immediately
     setPrompt("");
@@ -90,7 +91,7 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
         promptType: "ASSISTANT",
       };
       
-      setPrompts(prev => [...prev, assistantResponse]);
+      mutate([...(prompts || []), assistantResponse], false);
     } catch (error) {
       setPrompt(trimmedPrompt); // Restore prompt on error
       toast.error('Failed to submit prompt', {
@@ -149,7 +150,15 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
           className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
           style={{ color: "#f3f4f6" }}
         >
-          {prompts.length === 0 ? (
+          {isLoadingPrompts ? (
+            <div className="flex justify-center items-center h-32">
+              <Loader2 className="h-6 w-6 animate-spin text-white" />
+            </div>
+          ) : promptsError ? (
+            <div className="text-red-400 text-center p-4">
+              Error loading prompts: {promptsError}
+            </div>
+          ) : !prompts || prompts.length === 0 ? (
             <div className="flex flex-col justify-center items-center h-32 gap-3">
               <Button
                 onClick={handleGenerateFrontend}

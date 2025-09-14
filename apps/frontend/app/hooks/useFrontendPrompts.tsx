@@ -4,12 +4,12 @@ import { BACKEND_URL } from '../config';
 import { useAuth } from '@clerk/nextjs';
 import { OptimisticPrompt } from '@/types/prompt';
 
-export function useBackendPrompts(projectId: string) {
+export function useFrontendPrompts(projectId: string) {
   const { getToken } = useAuth();
 
   const fetcher = async (url: string) => {
     const token = await getToken();
-    const response = await axios.get<OptimisticPrompt[]>(url+"?type=BACKEND", {
+    const response = await axios.get<OptimisticPrompt[]>(url+"?type=FRONTED", {
       headers: {
         Authorization: `Bearer ${token}`,
       },

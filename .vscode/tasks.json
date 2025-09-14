@@ -28,12 +28,12 @@
       "problemMatcher": []
     },
     {
-      "label": "Start Workder",
+      "label": "Start worker",
       "type": "shell",
       "command": "pnpm",
       "args": ["dev"],
       "options": {
-        "cwd": "apps/workder",
+        "cwd": "apps/worker",
         "env": {
           "PATH": "${env:PATH}:/Users/saif/.local/state/fnm_multishells/74858_1755325687422/bin"
         }
