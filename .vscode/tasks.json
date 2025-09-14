@@ -8,9 +8,6 @@
       "args": ["dev"],
       "options": {
         "cwd": "apps/frontend",
-        "env": {
-          "PATH": "${env:PATH}:/Users/saif/.local/state/fnm_multishells/74858_1755325687422/bin"
-        }
       },
       "problemMatcher": []
     },
@@ -21,9 +18,6 @@
       "args": ["dev"],
       "options": {
         "cwd": "apps/backend",
-        "env": {
-          "PATH": "${env:PATH}:/Users/saif/.local/state/fnm_multishells/74858_1755325687422/bin"
-        }
       },
       "problemMatcher": []
     },
@@ -34,22 +28,6 @@
       "args": ["dev"],
       "options": {
         "cwd": "apps/worker",
-        "env": {
-          "PATH": "${env:PATH}:/Users/saif/.local/state/fnm_multishells/74858_1755325687422/bin"
-        }
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Start Backend",
-      "type": "shell",
-      "command": "pnpm",
-      "args": ["dev"],
-      "options": {
-        "cwd": "apps/backend",
-        "env": {
-          "PATH": "${env:PATH}:/Users/saif/.local/state/fnm_multishells/74858_1755325687422/bin"
-        }
       },
       "problemMatcher": []
     },
@@ -60,9 +38,6 @@
       "args": ["prisma", "studio"],
       "options": {
         "cwd": "packages/db",
-        "env": {
-          "PATH": "${env:PATH}:/Users/saif/.local/state/fnm_multishells/74858_1755325687422/bin"
-        }
       },
       "problemMatcher": []
     },

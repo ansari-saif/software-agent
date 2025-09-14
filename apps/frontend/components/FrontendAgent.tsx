@@ -5,7 +5,8 @@ import { Loader2, Send, Code2 } from "lucide-react";
 import { toast } from "sonner";
 import { useGenerateFrontend } from "@/app/hooks/useGenerateFrontend";
 import { useFrontendPrompts } from "@/app/hooks/useFrontendPrompts";
-import { OptimisticPrompt } from "@/types/prompt";
+import { useSubmitPrompt } from "@/app/hooks/useSubmitPrompt";
+import type { OptimisticPrompt } from "@/types/prompt";
 interface FrontendAgentProps {
   projectId: string; // Used for API calls to identify the project context
   theme: {
@@ -23,11 +24,14 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
     isLoading: isLoadingPrompts,
     error: promptsError,
   } = useFrontendPrompts(projectId);
-  
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _projectId = projectId; // Will be used in future API implementation
+
+  const {
+    submitPrompt,
+    isSubmitting,
+    error: submitError,
+  } = useSubmitPrompt(projectId);
+
   const [prompt, setPrompt] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [optimisticPrompt, setOptimisticPrompt] = useState<OptimisticPrompt | null>(null);
   const [activeTab, setActiveTab] = useState<'codeserver' | 'docs'>('codeserver');
   
@@ -74,31 +78,26 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
     };
 
     setOptimisticPrompt(newPrompt);
-    mutate([...(prompts || []), newPrompt], false);
+    if (prompts) {
+      mutate([...prompts, newPrompt], false);
+    } else {
+      mutate([newPrompt], false);
+    }
 
     // Clear input immediately
     setPrompt("");
-    setIsSubmitting(true);
 
     try {
-      // TODO: Implement actual frontend agent API call
-      // Simulate response for now
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const assistantResponse: OptimisticPrompt = {
-        id: Date.now().toString(),
-        content: "I'm the frontend agent. I'll help you with UI/UX tasks, component creation, and styling. This is a placeholder response - actual implementation pending.",
-        promptType: "ASSISTANT",
-      };
-      
-      mutate([...(prompts || []), assistantResponse], false);
+      const response = await submitPrompt(trimmedPrompt);
+      if (response) {
+        await mutate();
+      }
     } catch (error) {
       setPrompt(trimmedPrompt); // Restore prompt on error
       toast.error('Failed to submit prompt', {
         description: error instanceof Error ? error.message : 'An unexpected error occurred',
       });
     } finally {
-      setIsSubmitting(false);
       setOptimisticPrompt(null);
     }
   };
@@ -143,6 +142,12 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
             Frontend Assistant
           </div>
         </div>
+
+        {(promptsError || submitError) && (
+          <div className="text-red-500 text-sm mt-2 text-center">
+            {promptsError || submitError}
+          </div>
+        )}
         
         {/* Chat Messages */}
         <div
@@ -150,15 +155,23 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
           className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
           style={{ color: "#f3f4f6" }}
         >
-          {isLoadingPrompts ? (
+          {isLoadingPrompts && !prompts?.length ? (
             <div className="flex justify-center items-center h-32">
-              <Loader2 className="h-6 w-6 animate-spin text-white" />
+              <Loader2 
+                className="h-6 w-6 animate-spin"
+                style={{ color: theme.accent }}
+              />
             </div>
-          ) : promptsError ? (
-            <div className="text-red-400 text-center p-4">
-              Error loading prompts: {promptsError}
-            </div>
-          ) : !prompts || prompts.length === 0 ? (
+          ) : prompts?.length ? (
+            <>
+              {prompts.map(renderPromptMessage)}
+              {isSubmitting && !optimisticPrompt && (
+                <div className="flex justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                </div>
+              )}
+            </>
+          ) : (
             <div className="flex flex-col justify-center items-center h-32 gap-3">
               <Button
                 onClick={handleGenerateFrontend}
@@ -182,15 +195,6 @@ export default function FrontendAgent({ projectId, theme }: FrontendAgentProps) 
                 Start by generating the frontend components and structure for your application
               </p>
             </div>
-          ) : (
-            <>
-              {prompts.map(renderPromptMessage)}
-              {isSubmitting && !optimisticPrompt && (
-                <div className="flex justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-white" />
-                </div>
-              )}
-            </>
           )}
         </div>
 
