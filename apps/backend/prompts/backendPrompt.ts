@@ -20,7 +20,7 @@ Example of correct output format:
 ## Input Format
 
 \`\`\`
-<code filename="main.py">
+<code filename="apps/main.py">
 [Current main.py content]
 </code>
 
@@ -276,7 +276,7 @@ When a field has "ref" property:
 2. \`app/schemas/{module_name}.py\` - Pydantic schemas
 3. \`app/api/v1/routes/{module_name}.py\` - FastAPI router
 4. \`app/services/{module_name}_service.py\` - Service layer
-5. \`main.py\` - Updated with new router import and inclusion
+5. \`app/main.py\` - Updated with new router import and inclusion
 
 ## Main.py Update Pattern
 
