@@ -281,7 +281,7 @@ const generateBackend = async (req: any, res: any) => {
         messages: message,
         system: systemPrompt("backend"),
         model: "claude-3-7-sonnet-20250219",
-        max_tokens: 4000,
+        max_tokens: 16000,
       });
 
       // Parse and process the AI response
@@ -480,7 +480,7 @@ const generateFrontend = async (req: any, res: any) => {
         messages: message,
         system: systemPrompt("frontend"),
         model: "claude-3-7-sonnet-20250219",
-        max_tokens: 8000,
+        max_tokens: 16000,
       });
 
       // Parse and process the AI response
@@ -711,10 +711,10 @@ const processOpenApiInternal = async (projectId: string) => {
 
     // Get OpenAPI data from project
     const openApiData = project.openApi;
-    if (!openApiData) {
-      console.error("OpenAPI data not found for this project");
-      return;
-    }
+    // if (!openApiData) {
+    //   console.error("OpenAPI data not found for this project");
+    //   return;
+    // }
 
     // Initialize OpenAPI structure if it doesn't exist
     let openApiStructure = openApiData as any;
@@ -785,13 +785,15 @@ app.post("/projects", authMiddleware, getProjects);
 app.post("/prompt", authMiddleware, setPrompt);
 app.get("/prompts/:projectId", authMiddleware, getPrompt);
 app.post("/backend-prompt", authMiddleware, setBackendPrompt);
-app.post("/generate-backend", authMiddleware, generateBackend);
 app.get("/backend-prompts/:projectId", authMiddleware, getBackendPrompt);
 app.post("/frontend-prompt", authMiddleware, setFrontendPrompt);
 app.get("/frontend-prompts/:projectId", authMiddleware, getFrontendPrompt);
 app.get("/project/:projectId", authMiddleware, getProjectDetails);
 app.post("/project/:projectId/schema", authMiddleware, projectSchema);
 app.post("/project/:projectId/generate-dbml", generateDbml);
+
+// FIXME : ADD AUTH
+app.post("/generate-backend", generateBackend);
 
 // FIXME : ADD AUTH
 app.post("/project/:projectId/process-openapi", processOpenApi);

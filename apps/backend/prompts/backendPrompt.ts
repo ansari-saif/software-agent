@@ -20,7 +20,7 @@ Example of correct output format:
 ## Input Format
 
 \`\`\`
-<code filename="main.py">
+<code filename="apps/main.py">
 [Current main.py content]
 </code>
 
