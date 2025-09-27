@@ -75,7 +75,8 @@
         "Start Prisma Studio",
         "Start Code Server",
         "Start Docker Container",
-        "Run DB"
+        "Run DB",
+        "Start worker"
       ],
       "dependsOrder": "parallel",
       "problemMatcher": [],

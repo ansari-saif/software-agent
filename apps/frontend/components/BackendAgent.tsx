@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Database, Code2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { useBackendPrompts } from "@/app/hooks/useBackendPrompts";
+import { useBackendActions } from "@/app/hooks/useBackendActions";
 import { useSubmitBackendPrompt } from "@/app/hooks/useSubmitBackendPrompt";
 import { useGenerateBackend } from "@/app/hooks/useGenerateBackend";
 
@@ -28,17 +28,19 @@ export default function BackendAgent({
   project,
 }: BackendAgentProps) {
   const {
-    prompts,
+    actions,
     mutate,
-    isLoading: isLoadingPrompts,
-    error: promptsError,
-  } = useBackendPrompts(projectId);
+    isLoading: isLoadingActions,
+    error: actionsError,
+  } = useBackendActions(projectId);
 
   const { generateBackend, isGenerating } = useGenerateBackend(projectId);
 
   const [isReady, setIsReady] = useState(false);
-  const [activeTab, setActiveTab] = useState<'codeserver' | 'docs'>('codeserver');
-  
+  const [activeTab, setActiveTab] = useState<"codeserver" | "docs">(
+    "codeserver"
+  );
+
   useEffect(() => {
     if (project?.schema) {
       setIsReady(true);
@@ -67,7 +69,7 @@ export default function BackendAgent({
 
   useEffect(() => {
     scrollToBottom();
-  }, [optimisticPrompt, prompts]);
+  }, [optimisticPrompt, actions]);
 
   const handleSubmit = async () => {
     if (!prompt.trim() || isSubmitting) return;
@@ -111,16 +113,15 @@ export default function BackendAgent({
       await mutate(); // Refresh prompts after generation
     } catch (error) {
       // Error is already handled in the hook
-      console.error('Backend generation failed:', error);
+      console.error("Backend generation failed:", error);
     }
   };
 
-  const optimisticPromptNotInList =
-    optimisticPrompt &&
-    !prompts?.find((p: OptimisticPrompt) => p.id === optimisticPrompt.id);
-  const allPrompts = optimisticPromptNotInList
-    ? [...(prompts || []), optimisticPrompt]
-    : prompts;
+  const optimisticPromptNotInList = optimisticPrompt &&
+    !actions?.find((p: OptimisticPrompt) => p.id === optimisticPrompt.id);
+  const allActions = optimisticPromptNotInList
+    ? [...(actions || []), optimisticPrompt]
+    : actions;
 
   const renderPromptMessage = (prompt: OptimisticPrompt) => {
     if (prompt.promptType === "USER") {
@@ -165,9 +166,9 @@ export default function BackendAgent({
           </div>
         </div>
 
-        {(promptsError || submitError) && (
+        {(actionsError || submitError) && (
           <div className="text-red-500 text-sm mt-2 text-center">
-            {promptsError || submitError}
+            {actionsError || submitError}
           </div>
         )}
         {isReady ? (
@@ -176,15 +177,15 @@ export default function BackendAgent({
             className="flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]"
             style={{ color: "#f3f4f6" }}
           >
-            {isLoadingPrompts && !allPrompts?.length ? (
+            {isLoadingActions && !allActions?.length ? (
               <div className="flex justify-center items-center h-32">
                 <Loader2
                   className="h-6 w-6 animate-spin"
                   style={{ color: theme.accent }}
                 />
               </div>
-            ) : allPrompts?.length ? (
-              allPrompts?.map(renderPromptMessage)
+            ) : allActions?.length ? (
+              allActions?.map(renderPromptMessage)
             ) : (
               <div className="flex flex-col justify-center items-center h-32 gap-3">
                 <Button
@@ -206,7 +207,8 @@ export default function BackendAgent({
                   )}
                 </Button>
                 <p className="text-sm text-gray-400 text-center max-w-xs">
-                  Start by generating the backend infrastructure based on your schema
+                  Start by generating the backend infrastructure based on your
+                  schema
                 </p>
               </div>
             )}
@@ -223,17 +225,24 @@ export default function BackendAgent({
               <Database className="w-12 h-12" style={{ color: theme.accent }} />
               <div className="absolute -top-1 -right-1">
                 <div className="animate-spin">
-                  <Loader2 className="w-6 h-6" style={{ color: theme.accentLight }} />
+                  <Loader2
+                    className="w-6 h-6"
+                    style={{ color: theme.accentLight }}
+                  />
                 </div>
               </div>
             </div>
             <div className="text-center space-y-2">
-              <h3 className="text-xl font-semibold" style={{ color: theme.accent }}>
+              <h3
+                className="text-xl font-semibold"
+                style={{ color: theme.accent }}
+              >
                 Create Database Schema First
               </h3>
               <p className="text-gray-400 max-w-md">
-                Please create your database schema using the DB Agent before proceeding. 
-                Once the schema is ready, you can return here to work with the Backend Assistant.
+                Please create your database schema using the DB Agent before
+                proceeding. Once the schema is ready, you can return here to
+                work with the Backend Assistant.
               </p>
             </div>
           </div>
@@ -282,62 +291,61 @@ export default function BackendAgent({
         <div className="bg-gray-900 border-b border-gray-700">
           <div className="flex items-center">
             <button
-              onClick={() => setActiveTab('codeserver')}
+              onClick={() => setActiveTab("codeserver")}
               className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors duration-200 ${
-                activeTab === 'codeserver'
-                  ? 'border-blue-500 text-blue-400 bg-gray-800'
-                  : 'border-transparent text-gray-400 hover:text-gray-300 hover:bg-gray-800'
+                activeTab === "codeserver"
+                  ? "border-blue-500 text-blue-400 bg-gray-800"
+                  : "border-transparent text-gray-400 hover:text-gray-300 hover:bg-gray-800"
               }`}
             >
               <Code2 className="w-4 h-4" />
               <span>Codebase</span>
             </button>
             <button
-              onClick={() => setActiveTab('docs')}
+              onClick={() => setActiveTab("docs")}
               className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors duration-200 ${
-                activeTab === 'docs'
-                  ? 'border-blue-500 text-blue-400 bg-gray-800'
-                  : 'border-transparent text-gray-400 hover:text-gray-300 hover:bg-gray-800'
+                activeTab === "docs"
+                  ? "border-blue-500 text-blue-400 bg-gray-800"
+                  : "border-transparent text-gray-400 hover:text-gray-300 hover:bg-gray-800"
               }`}
             >
-              <svg 
-                className="w-4 h-4" 
-                fill="none" 
-                stroke="currentColor" 
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
               <span>API Documentation</span>
             </button>
-          
           </div>
         </div>
-        
+
         {/* Tab Content */}
         <div className="relative h-full">
-          {activeTab === 'codeserver' && (
+          {activeTab === "codeserver" && (
             <iframe
               src="http://localhost:8443/?folder=/tmp/stich-worker"
               className="w-full border-0"
               title="Code Server"
-              style={{ height: 'calc(100vh - 64px - 56px)' }}
+              style={{ height: "calc(100vh - 64px - 56px)" }}
               allow="clipboard-read; clipboard-write"
             />
           )}
-          {activeTab === 'docs' && (
+          {activeTab === "docs" && (
             <iframe
               src="http://localhost:8000/docs/"
               className="w-full border-0"
               title="API Documentation"
-              style={{ 
-                height: 'calc(100vh - 64px - 56px)',
-                filter: 'invert(0.9) hue-rotate(180deg)'
+              style={{
+                height: "calc(100vh - 64px - 56px)",
+                filter: "invert(0.9) hue-rotate(180deg)",
               }}
               allow="clipboard-read; clipboard-write"
             />

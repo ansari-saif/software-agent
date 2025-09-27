@@ -4,7 +4,7 @@ import { BACKEND_URL } from '../config';
 import { useAuth } from '@clerk/nextjs';
 import { OptimisticPrompt } from '@/types/prompt';
 
-export function useBackendPrompts(projectId: string) {
+export function useBackendActions(projectId: string) {
   const { getToken } = useAuth();
 
   const fetcher = async (url: string) => {
@@ -19,11 +19,12 @@ export function useBackendPrompts(projectId: string) {
 
   const { data, error, mutate, isLoading } = useSWR(
     `${BACKEND_URL}/actions/${projectId}`,
-    fetcher
+    fetcher,
+    { refreshInterval: 500 }
   );
 
   return {
-    prompts: data,
+    actions: data,
     isLoading,
     error: error ? error.message : null,
     mutate,

@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
-import Anthropic from "@anthropic-ai/sdk";
+// import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicSimulator as Anthropic } from "./anthropicSimulator";
 import { prismaClient } from "db/client";
 
 import { ArtifactProcessor } from "./parser";
@@ -64,7 +65,7 @@ app.post("/generate-backend", async (req, res) => {
       where: { projectId, agentType: "BACKEND" },
       orderBy: { createdAt: "asc" },
     });
-    let artifactProcessor = new ArtifactProcessor(
+    let artifactProcessor = await new ArtifactProcessor(
       "",
       (filePath, fileContent) =>
         onFileUpdate(filePath, fileContent, projectId, promptDb.id),
@@ -75,19 +76,20 @@ app.post("/generate-backend", async (req, res) => {
       role: p.promptType === "USER" ? "user" : "assistant",
       content: p.content,
     })) as Array<{ role: "user" | "assistant"; content: string }>;
-    let response = client.messages
+    await new Promise((resolve, reject) => {
+      client.messages
       .stream({
         messages: messages,
         system: systemPrompt(),
         model: "claude-3-7-sonnet-20250219",
         max_tokens: 8000,
       })
-      .on("text", (text) => {
+      .on("text", (text: string) => {
         artifactProcessor.append(text);
         artifactProcessor.parse();
         artifact += text;
       })
-      .on("finalMessage", async (message) => {
+      .on("finalMessage", async (message: any) => {
         console.log("done!");
         await prismaClient.prompt.create({
           data: {
@@ -106,10 +108,13 @@ app.post("/generate-backend", async (req, res) => {
           },
         });
         onPromptEnd(promptDb.id);
+        resolve(true);
       })
-      .on("error", (error) => {
+      .on("error", (error: any) => {
         console.log("error", error);
+        reject(error);
       });
+    })
   }
 });
 app.post("/prompt", async (req, res) => {
@@ -164,12 +169,12 @@ app.post("/prompt", async (req, res) => {
       model: "claude-3-7-sonnet-20250219",
       max_tokens: 8000,
     })
-    .on("text", (text) => {
+    .on("text", (text: string) => {
       artifactProcessor.append(text);
       artifactProcessor.parse();
       artifact += text;
     })
-    .on("finalMessage", async (message) => {
+    .on("finalMessage", async (message: any) => {
       console.log("done!");
       await prismaClient.prompt.create({
         data: {
@@ -189,7 +194,7 @@ app.post("/prompt", async (req, res) => {
       });
       onPromptEnd(promptDb.id);
     })
-    .on("error", (error) => {
+    .on("error", (error: any) => {
       console.log("error", error);
     });
 
@@ -265,12 +270,12 @@ app.post("/generate-frontend", async (req, res) => {
         model: "claude-3-7-sonnet-20250219",
         max_tokens: 8000,
       })
-      .on("text", (text) => {
+      .on("text", (text :string) => {
         artifactProcessor.append(text);
         artifactProcessor.parse();
         artifact += text;
       })
-      .on("finalMessage", async (message) => {
+      .on("finalMessage", async (message:any) => {
         console.log("done!");
         await prismaClient.prompt.create({
           data: {
@@ -292,7 +297,7 @@ app.post("/generate-frontend", async (req, res) => {
         });
         onPromptEnd(promptDb.id);
       })
-      .on("error", (error) => {
+      .on("error", (error:any) => {
         console.log("error", error);
       });
   }
@@ -351,12 +356,12 @@ app.post("/prompt-frontend", async (req, res) => {
       model: "claude-3-7-sonnet-20250219",
       max_tokens: 8000,
     })
-    .on("text", (text) => {
+    .on("text", (text: string) => {
       artifactProcessor.append(text);
       artifactProcessor.parse();
       artifact += text;
     })
-    .on("finalMessage", async (message) => {
+    .on("finalMessage", async (message: any) => {
       console.log("done!");
       await prismaClient.prompt.create({
         data: {
@@ -377,7 +382,7 @@ app.post("/prompt-frontend", async (req, res) => {
       });
       onPromptEnd(promptDb.id);
     })
-    .on("error", (error) => {
+    .on("error", (error: any) => {
       console.log("error", error);
     });
 
@@ -438,12 +443,12 @@ const setPromptdB = async (req: any, res: any) => {
       model: "claude-3-7-sonnet-20250219",
       max_tokens: 8000,
     })
-    .on("text", (text) => {
+    .on("text", (text :string) => {
       artifactProcessor.append(text);
       artifactProcessor.parse();
       artifact += text;
     })
-    .on("finalMessage", async (message) => {
+    .on("finalMessage", async (message :any) => {
       console.log("done!");
       await prismaClient.prompt.create({
         data: {
@@ -464,7 +469,7 @@ const setPromptdB = async (req: any, res: any) => {
       });
       onPromptEnd(promptDb.id);
     })
-    .on("error", (error) => {
+    .on("error", (error : any) => {
       console.log("error", error);
     });
 
