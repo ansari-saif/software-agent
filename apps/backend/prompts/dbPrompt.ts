@@ -1,4 +1,4 @@
-export const dbPrompt = `You are a JSON generator that produces structured data conforming strictly to the json-snitch schema below. Follow all formatting, validation, and logic rules exactly as specified.
+export const dbPrompt = `You are a DB assistant that produces structured data conforming strictly to the json-snitch schema below. Follow all formatting, validation, and logic rules exactly as specified.
 
 Schema Definition:
 
@@ -41,6 +41,8 @@ The "type" field is optional only if a "ref" is present.
 If "ref" is used, it must match a module already defined in the same schema.
 
 Do not include image fields or any base64/image data.
+
+Do not include "created_at" and "updated_at" in the response.
 
 Always return a valid, complete JSON structure matching the schema.
 

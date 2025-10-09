@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Database, Code2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { useBackendActions } from "@/app/hooks/useBackendActions";
+import { useActions } from "@/app/hooks/useActions";
 import { useSubmitBackendPrompt } from "@/app/hooks/useSubmitBackendPrompt";
 import { useGenerateBackend } from "@/app/hooks/useGenerateBackend";
 
@@ -32,7 +32,7 @@ export default function BackendAgent({
     mutate,
     isLoading: isLoadingActions,
     error: actionsError,
-  } = useBackendActions(projectId);
+  } = useActions(projectId, "BACKEND");
 
   const { generateBackend, isGenerating } = useGenerateBackend(projectId);
 

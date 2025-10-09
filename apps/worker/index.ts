@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
-// import Anthropic from "@anthropic-ai/sdk";
-import { AnthropicSimulator as Anthropic } from "./anthropicSimulator";
+import Anthropic from "@anthropic-ai/sdk";
+// import { AnthropicSimulator as Anthropic } from "./anthropicSimulator";
 import { prismaClient } from "db/client";
 
 import { ArtifactProcessor } from "./parser";
@@ -12,11 +12,65 @@ import { systemPrompt as systemPromptDB } from "./systemDBPrompt";
 import dotenv from "dotenv";
 dotenv.config();
 
+async function streamAnthropicResponse(
+  client: Anthropic,
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+  systemPrompt: string,
+  artifactProcessor: ArtifactProcessor,
+  projectId: string,
+  promptDbId: string,
+  agentType: "BACKEND" | "FRONTEND" | "DB"
+): Promise<void> {
+  let artifact = "";
+  
+  return new Promise((resolve, reject) => {
+    client.messages
+      .stream({
+        messages: messages,
+        system: systemPrompt,
+        model: "claude-3-7-sonnet-20250219",
+        max_tokens: 8000,
+      })
+      .on("text", (text: string) => {
+        artifactProcessor.append(text);
+        artifactProcessor.parse();
+        artifact += text;
+      })
+      .on("finalMessage", async (message: any) => {
+        console.log("done!");
+        await prismaClient.prompt.create({
+          data: {
+            agentType,
+            content: artifact,
+            projectId,
+            promptType: "AGENT",
+          },
+        });
+
+        await prismaClient.action.create({
+          data: {
+            content: "Done!",
+            projectId,
+            promptId: promptDbId,
+            agentType,
+          },
+        });
+        onPromptEnd(promptDbId);
+        resolve();
+      })
+      .on("error", (error: any) => {
+        console.log("error", error);
+        reject(error);
+      });
+  });
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.post("/generate-backend", async (req, res) => {
   const { projectId } = req.body;
+  
   const project = await prismaClient.project.findUnique({
     where: {
       id: projectId,
@@ -71,50 +125,21 @@ app.post("/generate-backend", async (req, res) => {
         onFileUpdate(filePath, fileContent, projectId, promptDb.id),
       (shellCommand) => onShellCommand(shellCommand, projectId, promptDb.id)
     );
-    let artifact = "";
     const messages = allPrompts.map((p: any) => ({
       role: p.promptType === "USER" ? "user" : "assistant",
       content: p.content,
     })) as Array<{ role: "user" | "assistant"; content: string }>;
-    await new Promise((resolve, reject) => {
-      client.messages
-      .stream({
-        messages: messages,
-        system: systemPrompt(),
-        model: "claude-3-7-sonnet-20250219",
-        max_tokens: 8000,
-      })
-      .on("text", (text: string) => {
-        artifactProcessor.append(text);
-        artifactProcessor.parse();
-        artifact += text;
-      })
-      .on("finalMessage", async (message: any) => {
-        console.log("done!");
-        await prismaClient.prompt.create({
-          data: {
-             agentType: "BACKEND",
-            content: artifact,
-            projectId,
-            promptType: "AGENT",
-          },
-        });
-
-        await prismaClient.action.create({
-          data: {
-            content: "Done!",
-            projectId,
-            promptId: promptDb.id,
-          },
-        });
-        onPromptEnd(promptDb.id);
-        resolve(true);
-      })
-      .on("error", (error: any) => {
-        console.log("error", error);
-        reject(error);
-      });
-    })
+    
+    await streamAnthropicResponse(
+      client,
+      messages,
+      systemPrompt(),
+      artifactProcessor,
+      projectId,
+      promptDb.id,
+      "BACKEND"
+    );
+    res.json({ response: "success" });
   }
 });
 app.post("/prompt", async (req, res) => {
@@ -203,6 +228,7 @@ app.post("/prompt", async (req, res) => {
 
 app.post("/generate-frontend", async (req, res) => {
   const { projectId } = req.body;
+
   const project = await prismaClient.project.findUnique({
     where: {
       id: projectId,
@@ -258,49 +284,21 @@ app.post("/generate-frontend", async (req, res) => {
         onFileUpdate(filePath, fileContent, projectId, promptDb.id, "frontend"),
       (shellCommand) => onShellCommand(shellCommand, projectId, promptDb.id, "frontend")
     );
-    let artifact = "";
     const messages = allPrompts.map((p: any) => ({
       role: p.promptType === "USER" ? "user" : "assistant",
       content: p.content,
     })) as Array<{ role: "user" | "assistant"; content: string }>;
-    let response = client.messages
-      .stream({
-        messages: messages,
-        system: systemPromptFrontend(),
-        model: "claude-3-7-sonnet-20250219",
-        max_tokens: 8000,
-      })
-      .on("text", (text :string) => {
-        artifactProcessor.append(text);
-        artifactProcessor.parse();
-        artifact += text;
-      })
-      .on("finalMessage", async (message:any) => {
-        console.log("done!");
-        await prismaClient.prompt.create({
-          data: {
-             agentType: "FRONTEND",
-            content: artifact,
-            projectId,
-            promptType: "AGENT",
-          },
-        });
-
-        await prismaClient.action.create({
-          data: {
-            content: "Done!",
-            projectId,
-            promptId: promptDb.id,
-            agentType: "FRONTEND",
-            promptType: "AGENT",
-          },
-        });
-        onPromptEnd(promptDb.id);
-      })
-      .on("error", (error:any) => {
-        console.log("error", error);
-      });
+    await streamAnthropicResponse(
+      client,
+      messages,
+      systemPromptFrontend(),
+      artifactProcessor,
+      projectId,
+      promptDb.id,
+      "FRONTEND"
+    );
   }
+  res.json({ response: "success" });
 });
 app.post("/prompt-frontend", async (req, res) => {
   const { prompt, projectId } = req.body;

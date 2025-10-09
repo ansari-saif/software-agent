@@ -78,7 +78,7 @@ export default function ProjectPage() {
       case "db":
         return <DbAgent projectId={projectId} theme={theme} setDbCompleted={setDbCompleted} project={project} refetchProject={refetchProject} />;
       case "frontend":
-        return <FrontendAgent projectId={projectId} theme={theme}   />;
+        return <FrontendAgent projectId={projectId} theme={theme}  project={project}  />;
       case "backend":
         return <BackendAgent projectId={projectId} theme={theme} project={project}  />;
       default:

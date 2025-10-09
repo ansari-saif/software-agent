@@ -853,7 +853,8 @@ const getActions = async (req: any, res: any) => {
   }
 };
 
-app.get("/actions/:projectId", authMiddleware, getActions);
+// FIXME: ADD AUTH
+app.get("/actions/:projectId", getActions);
 
 app.listen(8080, () => {
   console.log("Server is rurnning on port 8080");
