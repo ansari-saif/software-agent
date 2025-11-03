@@ -20,7 +20,7 @@ export function useActions(projectId: string, agentType: string) {
   const { data, error, mutate, isLoading } = useSWR(
     `${BACKEND_URL}/actions/${projectId}`,
     fetcher,
-    { refreshInterval: 500 }
+    { refreshInterval: 100 }
   );
 
   return {

@@ -29,7 +29,8 @@ async function streamAnthropicResponse(
         messages: messages,
         system: systemPrompt,
         model: "claude-3-7-sonnet-20250219",
-        max_tokens: 8000,
+        temperature: 0,
+        max_tokens: 16000,
       })
       .on("text", (text: string) => {
         artifactProcessor.append(text);
@@ -192,6 +193,7 @@ app.post("/prompt", async (req, res) => {
       messages: messages,
       system: systemPrompt(),
       model: "claude-3-7-sonnet-20250219",
+      temperature: 0,
       max_tokens: 8000,
     })
     .on("text", (text: string) => {
@@ -352,6 +354,7 @@ app.post("/prompt-frontend", async (req, res) => {
       messages: messages,
       system: systemPrompt(),
       model: "claude-3-7-sonnet-20250219",
+      temperature: 0,
       max_tokens: 8000,
     })
     .on("text", (text: string) => {
@@ -439,6 +442,7 @@ const setPromptdB = async (req: any, res: any) => {
       messages: messages,
       system: systemPromptDB(),
       model: "claude-3-7-sonnet-20250219",
+      temperature: 0,
       max_tokens: 8000,
     })
     .on("text", (text :string) => {

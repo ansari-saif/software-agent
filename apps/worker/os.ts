@@ -18,6 +18,7 @@ export async function onFileUpdate(
       projectId,
       promptId,
       content: `Updated file ${filePath}`,
+      agentType: agentType.toUpperCase() as "BACKEND" | "FRONTEND" | "DB"
     },
   });
 }

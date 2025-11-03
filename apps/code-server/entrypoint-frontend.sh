@@ -2,7 +2,7 @@
 set -e
 
 # Configuration
-TARGET_DIR="/tmp/stich-worker-frontend"
+TARGET_DIR="/Users/saif/stich/stich-worker-frontend"
 CONFIG_DIR="/config"
 USER_DIR="$CONFIG_DIR/data/User"
 TASKS_DIR="$TARGET_DIR/.vscode"

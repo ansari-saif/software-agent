@@ -3,6 +3,7 @@ const PREFACE =
 
 const SYSTEM_CONSTRAINTS = `
 <system_constraints>
+  IMPORTANT: Use KISS AND YAGNI principles when writing code.
   You are operating in an environment called a worker, a docker container that is running a Python runtime.
 
   Additionally, there is no gcc, g++, or any C/C++ compiler available. This environment CANNOT compile native extensions or C/C++ code!

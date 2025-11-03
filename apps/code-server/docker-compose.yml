@@ -10,13 +10,13 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - DEFAULT_WORKSPACE=/tmp/stich-worker
+      - DEFAULT_WORKSPACE=/Users/saif/stich/stich-worker
     ports:
       - "8443:8443"
       - "8000:8000"
     volumes:
-      - /tmp/stich-worker:/tmp/stich-worker
-      - /tmp/stich-config:/config
+      - /Users/saif/stich/stich-worker:/Users/saif/stich/stich-worker
+      - /Users/saif/stich/stich-config:/config
   
   code-server-frontend:
     build:
@@ -28,10 +28,10 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - DEFAULT_WORKSPACE=/tmp/stich-worker-frontend
+      - DEFAULT_WORKSPACE=/Users/saif/stich/stich-worker-frontend
     ports:
       - "8444:8443"
       - "5173:5173"
     volumes:
-      - /tmp/stich-worker-frontend:/tmp/stich-worker-frontend
-      - /tmp/stich-config:/config
+      - /Users/saif/stich/stich-worker-frontend:/Users/saif/stich/stich-worker-frontend
+      - /Users/saif/stich/stich-config:/config
