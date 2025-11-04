@@ -20,7 +20,7 @@ export async function writeFiles(files: FileContent[], projectId: string, type: 
   for (const file of files) {
     try {
       // Create the project-specific directory path based on type
-      const projectPath = type === 'frontend' ? "/tmp/stich-worker-frontend/" : "/tmp/stich-worker/";
+      const projectPath = type === 'frontend' ? "/Users/saif/stich/stich-worker-frontend/" : "/Users/saif/stich/stich-worker/";
       const fullPath = path.join(projectPath, file.file_path);
       
       // Ensure the directory exists
@@ -40,7 +40,7 @@ export async function writeFiles(files: FileContent[], projectId: string, type: 
 export async function runProjectCommand(command: string, projectId: string, type: 'backend' | 'frontend' = 'backend'): Promise<CommandResult> {
   try {
     // Create the project-specific directory path based on type (same as writeFiles)
-    const projectPath = type === 'frontend' ? "/tmp/stich-worker-frontend/" : "/tmp/stich-worker/";
+    const projectPath = type === 'frontend' ? "/Users/saif/stich/stich-worker-frontend/" : "/Users/saif/stich/stich-worker/";
     
     console.log(`Executing ${type} command: ${command} in directory: ${projectPath}`);
     

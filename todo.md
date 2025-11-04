@@ -86,3 +86,8 @@ fix
         frontend 
         backend
 2. on referesh state maintain nahi ho rahi 
+
+# cors issue in backend
+# word prural issue in modules
+# apis method issue 
+# frontend side bar issue 

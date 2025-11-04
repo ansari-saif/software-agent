@@ -117,7 +117,8 @@ export default function BackendAgent({
     }
   };
 
-  const optimisticPromptNotInList = optimisticPrompt &&
+  const optimisticPromptNotInList =
+    optimisticPrompt &&
     !actions?.find((p: OptimisticPrompt) => p.id === optimisticPrompt.id);
   const allActions = optimisticPromptNotInList
     ? [...(actions || []), optimisticPrompt]
@@ -331,7 +332,7 @@ export default function BackendAgent({
         <div className="relative h-full">
           {activeTab === "codeserver" && (
             <iframe
-              src="http://localhost:8443/?folder=/tmp/stich-worker"
+              src="http://localhost:8443/?folder=/Users/saif/stich/stich-worker"
               className="w-full border-0"
               title="Code Server"
               style={{ height: "calc(100vh - 64px - 56px)" }}

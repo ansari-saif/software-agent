@@ -330,7 +330,7 @@ export default function FrontendAgent({
         <div className="relative h-full">
           {activeTab === "codeserver" && (
             <iframe
-              src="http://localhost:8444/?folder=/tmp/stich-worker-frontend"
+              src="http://localhost:8444/?folder=/Users/saif/stich/stich-worker-frontend"
               className="w-full border-0"
               title="Code Server"
               style={{ height: "calc(100vh - 64px - 56px)" }}
