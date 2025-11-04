@@ -477,102 +477,25 @@ Here are some examples of correct usage of artifacts:
 `;
 const REACT_ARTIFACT_INFO = `
 <framework_info>
-  You are creating a React application with TypeScript. All code should follow React best practices.
-  You are using React with TypeScript, TanStack Table, and shadcn/ui components.
-  0. CRITICAL: Assume you already have a React project initialized in the current working directory. You DO NOT NEED TO re-initialize it.
-  1. We use the latest version of React with TypeScript and Vite for modern, fast development.
-  2. The project structure includes "src" folder with subdirectories: "components", "pages", "hooks", "utils", "types", and "api".
-  3. All code should be written in TypeScript with proper type definitions and follow React best practices.
-  4. Use shadcn/ui components for consistent UI and TanStack Table for data display.
-  5. Follow React best practices for hooks, state management, and component composition.
-  6. Implement proper error handling and loading states for all API interactions.
-  7. CRITICAL: Do not update the following files: App.tsx, navigation.ts as its auto handled and of course you don't have to update  Sidebar.tsx,  HomePage.tsx.
-
+  You are creating a React application with TypeScript using Vite, TanStack Table, and shadcn/ui components.
+  CRITICAL: Assume you already have a React project initialized - DO NOT re-initialize it.
+  - Project structure: "src" folder with "components", "pages", "hooks", "utils", "types", "api" subdirectories
+  - Use TypeScript with proper types and React best practices for hooks, state management, and component composition
+  - Use shadcn/ui components for consistent UI and TanStack Table for data display
+  - Implement proper error handling and loading states for all API interactions
+  - CRITICAL: Do not update: App.tsx, navigation.ts, Sidebar.tsx, HomePage.tsx
+  - CRITICAL: ALWAYS import the existing Sidebar as: \`import Sidebar from '@/components/Sidebar';\`
   </framework_info>
 <instructions>
-# React Module Creation Instructions
-## Prerequisites
-- React project already initialized in current directory
-- Project structure: \`src/\` with \`components/\`, \`pages/\`, \`hooks/\`, \`utils/\`, \`types/\`, and \`api/\` folders
-## Creation Order (Follow Exactly)
-### 1. Module Page (\`src/pages/{ModuleName}.tsx\`)
-Create a single comprehensive file that includes:
-<requirements>
-- TypeScript interfaces at the top of the file
-- React component with complete CRUD operations
-- TanStack Table with sorting/filtering/pagination
-- Dialog for create/edit forms with proper validation
-- Action dropdown menu with edit/delete options
+Create a single comprehensive \`src/pages/{ModuleName}.tsx\` file with:
+- Complete CRUD operations using real API calls (no mock data)
+- TanStack Table with sorting, filtering, pagination, and column visibility
+- Dialog forms for create/edit with validation
+- Action dropdown menus for edit/delete
 - Loading states and error handling
-- Search/filter input for table
-- Pagination controls
-- Form state management with validation
-- Use shadcn/ui components (Button, Input, Table, Dialog, DropdownMenu, etc.)
-- Follow Todo module pattern exactly
-
-</requirements>
-## Essential Components to Include
-### Table Configuration
-- TanStack Table with getCoreRowModel, getPaginationRowModel, getSortedRowModel, getFilteredRowModel
-- Sortable columns with ArrowUpDown icons
-- Filterable search input
-- Pagination controls (Previous/Next buttons)
-- Column visibility dropdown
-### Form Components
-- Dialog with DialogContent, DialogHeader, DialogTitle, DialogDescription
-- Form with proper validation (required fields)
-- Input fields with Labels
-- Textarea for descriptions
-- Checkbox for boolean fields
-- Form submission with loading states
-- Cancel/Submit buttons in DialogFooter
-### Action Components
-- DropdownMenu with DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem
-- Action buttons with Lucide icons (Edit, Trash2, Plus, MoreHorizontal)
-- Confirmation for delete actions
-- Loading states on action buttons
-### State Management
-- items state for data
-- showDialog state for modal
-- editingItem state for edit mode
-- formData state for form inputs
-- isLoading state for operations
-- Error handling in try/catch blocks
-### Loading & Error States
-- Loading indicators during API calls
-- Disabled buttons during loading
-- Error logging with console.error
-- Empty state when no data
-- Loading text in buttons ("Creating...", "Updating...")
-### UI Patterns
-- Responsive layout with proper spacing
-- Card containers with borders
-- Hover effects on table rows
-- Proper typography hierarchy
-- Consistent button variants (outline, ghost, default)
-## Code Style Examples
-### Page Example (\`src/pages/Todo.tsx\`)
-<style_requirements>
-- Import related components at the top of the file
-- Use TypeScript interfaces for all data types
-- Implement useState and useEffect hooks for state management
-- Create helper functions for API calls and data manipulation
-- Use proper React event handlers with TypeScript types
-- Follow TanStack Table configuration best practices
-- Implement shadcn/ui components consistently
-- Handle loading and error states for all async operations
-
-</style_requirements>
-## Validation
-After creation, verify:
-- All imports resolve correctly
-- TypeScript types are properly defined
-- Table configuration is complete
-- Form validation works as expected
-- All CRUD operations are implemented
-- Loading and error states are handled
-- UI is responsive and follows design patterns
-
+- Search/filter input and pagination controls
+- shadcn/ui components and Lucide icons
+- Follow the exact pattern from the TodoPage sample
 </instructions>
 
 <current_files>
@@ -793,7 +716,7 @@ const TodoPage: React.FC = () => {
 
   const fetchTodos = async () => setTodos(await TodoService.listAllTodoApiV1TodoGet());
   const handleDelete = async (id: number) => {
-    await TodoService.deleteTodoApiV1TodoTodoIdDelete({ todoId: id });
+    await TodoService.deleteTodoApiV1TodoIdDelete({ todoId: id });
     setTodos(prev => prev.filter(t => t.id !== id));
   };
 
@@ -810,7 +733,7 @@ const TodoPage: React.FC = () => {
     try {
       const todoData = { title: formData.title.trim(), description: formData.description.trim() || undefined, is_completed: formData.isCompleted };
       if (editingTodo) {
-        await TodoService.updateTodoApiV1TodoTodoIdPut({ todoId: editingTodo.id!, requestBody: todoData });
+        await TodoService.updateTodoApiV1TodoIdPut({ todoId: editingTodo.id!, requestBody: todoData });
       } else {
         await TodoService.createTodoApiV1TodoPost({ requestBody: todoData });
       }
@@ -971,30 +894,47 @@ API Integration Guidelines:
 5. CRITICAL: Use loading states during API operations to provide user feedback
 
 Available API Services:
-- TodoService with methods:
-  - listAllTodoApiV1TodoGet
-  - createTodoApiV1TodoPost
-  - getTodoApiV1TodoTodoIdGet
-  - updateTodoApiV1TodoTodoIdPut
-  - deleteTodoApiV1TodoTodoIdDelete
+- {Module}Service with methods:
+  - listAll{Module}ApiV1{Module}Get
+  - create{Module}ApiV1{Module}Post
+  - get{Module}ApiV1{Module}IdGet
+  - update{Module}ApiV1{Module}IdPut
+  - delete{Module}ApiV1{Module}IdDelete
+
+  for Example 
+- CategoryService with methods:
+  - listAllCategoryApiV1CategoryGet
+  - createCategoryApiV1CategoryPost
+  - getCategoryApiV1CategoryIdGet
+  - updateCategoryApiV1CategoryIdPut
+  - deleteCategoryApiV1CategoryIdDelete
 
 API Usage Pattern Example:
 // CORRECT - Using real API calls
-const fetchTodos = async () => {
-  try {
-    const todos = await TodoService.listAllTodoApiV1TodoGet();
-    setTodos(todos);
+const fetch{Module} = async () => {
+  try { 
+    const {Module} = await {Module}Service.listAll{Module}ApiV1{Module}Get();
+    set{Module}({Module});
   } catch (error) {
-    console.error('Failed to fetch todos:', error);
+    console.error('Failed to fetch {Module}:', error);
   }
 };
 
 // WRONG - Never use static/mock data
-const todos = [
-  { id: 1, title: 'Sample Todo' } // NEVER DO THIS
+const {Module} = [
+  { id: 1, name: 'Sample {Module}' } // NEVER DO THIS
 ];
 
 REMINDER: Always use the actual API service methods provided in the codebase. The API is already integrated and functional.
+
+GENERIC MODULE TEMPLATE:
+
+Generate a complete {Module}Page.tsx component following the TodoPage pattern exactly:
+- Use \`import Sidebar from '@/components/Sidebar';\` for the sidebar
+- Import API services from @/client as \`{Module}Service, {Module}Read\`
+- Use shadcn/ui components and Lucide icons
+- Implement full CRUD with real API calls, no mock data
+- Follow the exact structure and logic from the TodoPage sample
 `;
 export const systemPrompt = () => `
 ${PREFACE}

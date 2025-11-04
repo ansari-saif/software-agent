@@ -217,6 +217,14 @@ const FASTAPI_ARTIFACT_INFO = `
   6. Database configuration uses SQLite by default with proper session management.
 </framework_info>
 
+<input_format>
+The user will provide input in the following JSON format:
+{ "fields": [{ "name": "field_name", "type": "field_type" }], "module": "module_name" }
+
+IMPORTANT: The module name should always be SINGULAR, not plural.
+Example: "category" not "categories", "user" not "users", "product" not "products"
+</input_format>
+
 <instructions>
 # FastAPI Module Creation Instructions
 
@@ -295,6 +303,8 @@ Update main application:
 - Add router inclusion: app.include_router({module_name}_router, prefix="/api/v1/{module_name}")
 - Place imports after existing router imports
 - Place inclusion after existing router inclusions
+- IMPORTANT: Use SINGULAR module name in the route prefix (e.g., "/api/v1/category" not "/api/v1/categories")
+
 </requirements>
 
 ## Field Type Mapping
@@ -313,6 +323,13 @@ When field has \`ref\` property:
 ## Code Style Examples
 
 ### Routes Example (\`app/api/v1/routes/todo.py\`)
+in this router file 
+routes should be this 
+router = APIRouter(prefix="", tags=["{module_name}"])
+not this 
+router = APIRouter(prefix="/{module_name}", tags=["{module_name}"])
+as we've already imported router on main file /api/v1/{module_name} import router as {module_name}_router
+so we don't need to import it again in this router file
 
 <style_requirements>
 - Import service functions in multi-line format with parentheses
@@ -368,6 +385,14 @@ from app.core.database import engine
 from sqlmodel import SQLModel
 
 app = FastAPI(title="FastAPI Application", version="1.0.0")
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 @app.on_event("startup")
 def on_startup():

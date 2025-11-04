@@ -10,7 +10,13 @@ import { systemPrompt } from "./systemPrompt";
 import { systemPrompt as systemPromptFrontend } from "./systemPromptFrontend";
 import { systemPrompt as systemPromptDB } from "./systemDBPrompt";
 import dotenv from "dotenv";
+import { writeFiles } from "../backend/utils/fileWriter";
+import { addModule } from "../backend/services/addModuleAst";
+
 dotenv.config();
+function toTitleCase(str: string) {
+  return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+}
 
 async function streamAnthropicResponse(
   client: Anthropic,
@@ -140,8 +146,26 @@ app.post("/generate-backend", async (req, res) => {
       promptDb.id,
       "BACKEND"
     );
-    res.json({ response: "success" });
   }
+  // Call OpenAPI processing endpoint
+  try {
+    const openApiResponse = await fetch(`http://localhost:8080/project/${projectId}/process-openapi`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!openApiResponse.ok) {
+      console.error('OpenAPI processing failed:', openApiResponse.statusText);
+    } else {
+      console.log('OpenAPI processing completed successfully');
+    }
+  } catch (error) {
+    console.error('Error calling OpenAPI endpoint:', error);
+  }
+  
+  res.json({ response: "success" });
 });
 app.post("/prompt", async (req, res) => {
   const { prompt, projectId } = req.body;
@@ -253,6 +277,7 @@ app.post("/generate-frontend", async (req, res) => {
   const client = new Anthropic();
 
   for (let index = 0; index < schema.length; index++) {
+    const moduleName = schema[index].module;
     const element = JSON.stringify(schema[index]);
 
     // Create initial prompt for FRONTEND generation
@@ -299,7 +324,32 @@ app.post("/generate-frontend", async (req, res) => {
       promptDb.id,
       "FRONTEND"
     );
+    // Write the files to disk
+    const routerPath = "src/App.tsx";
+    const menuPath = "src/config/navigation.ts";
+    if (project.routeCode && project.menuCode){
+      let project = await prismaClient.project.findUnique({
+        where: {
+          id: projectId,
+        },
+      });
+      if (!project) {
+        res.status(404).json({ error: "Project not found" });
+        return;
+      }
+
+      const { router, menu } = addModule(project.routeCode, project.menuCode, './pages/'+toTitleCase(moduleName), toTitleCase(moduleName),'/' + moduleName.toLowerCase());
+      await writeFiles([{ file_path: routerPath, file_content: router }, { file_path: menuPath, file_content: menu }], projectId, "frontend");
+      await prismaClient.project.update({
+        where: { id: projectId },
+        data: { routeCode: router, menuCode: menu },
+      });
+    }else{
+      console.error("Route or menu code not found");
+    }
+    
   }
+
   res.json({ response: "success" });
 });
 app.post("/prompt-frontend", async (req, res) => {
