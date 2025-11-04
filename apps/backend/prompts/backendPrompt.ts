@@ -344,4 +344,5 @@ here is the json-schema for your response
     ]
   }
 }
+  // allow all cors origins in app/main.py file
 `;
