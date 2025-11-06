@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    container_name: my-docker
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - software-agent-network
+
+  software-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: software-agent-all-in-one
+    restart: unless-stopped
+    privileged: true
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+      - "8080:8080"
+      - "9091:9091"
+      - "5555:5555"
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@db:5432/postgres?schema=public"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      DBDIAGRAM_API_TOKEN: ${DBDIAGRAM_API_TOKEN}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+    volumes:
+      - .:/usr/src/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - software-agent-network
+
+networks:
+  software-agent-network:
+    driver: bridge
