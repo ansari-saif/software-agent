@@ -91,3 +91,7 @@ cors issue in backend {cm:2025-11-04}
 word prural issue in modules {cm:2025-11-04}
 apis client method issue 
 frontend side bar issue 
+
+I've to container 
+all of three four in one 
+and coder-servers(backend-frontend), db, and rest of all (backend, frontend, prisma studio, worker)
