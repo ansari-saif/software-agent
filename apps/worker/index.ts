@@ -74,7 +74,8 @@ async function streamAnthropicResponse(
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.post("/generate-backend", async (req, res) => {
   const { projectId } = req.body;
   
@@ -353,7 +354,7 @@ app.post("/generate-frontend", async (req, res) => {
   res.json({ response: "success" });
 });
 app.post("/prompt-frontend", async (req, res) => {
-  const { prompt, projectId } = req.body;
+  const { prompt, projectId, imageData } = req.body;
 
   const client = new Anthropic();
   const project = await prismaClient.project.findUnique({
@@ -365,17 +366,23 @@ app.post("/prompt-frontend", async (req, res) => {
     res.status(404).json({ error: "Project not found" });
     return;
   }
+  
+  // Store prompt with text or image indicator
+  const promptContent = imageData 
+    ? (prompt || "[Image uploaded for code generation]")
+    : prompt;
+  
   const promptDb = await prismaClient.prompt.create({
     data: {
        agentType: "FRONTEND",
-      content: prompt,
+      content: promptContent,
       projectId,
       promptType: "USER",
     },
   });
   await prismaClient.action.create({
     data: {
-      content: prompt,
+      content: promptContent,
       projectId,
       promptId: promptDb.id,
       agentType: "FRONTEND",
@@ -395,14 +402,44 @@ app.post("/prompt-frontend", async (req, res) => {
     (shellCommand) => onShellCommand(shellCommand, projectId, promptDb.id, "frontend")
   );
   let artifact = "";
-  const messages = allPrompts.map((p: any) => ({
+  
+  // Build messages array, with special handling for the last message if it contains an image
+  const messages = allPrompts.slice(0, -1).map((p: any) => ({
     role: p.promptType === "USER" ? "user" : "assistant",
     content: p.content,
-  })) as Array<{ role: "user" | "assistant"; content: string }>;
+  })) as Array<{ role: "user" | "assistant"; content: any }>;
+  
+  // Add the current message with image if present
+  if (imageData) {
+    const defaultPrompt = "Generate a React component using Tailwind CSS that recreates this UI exactly. Use functional components with hooks. Make it fully interactive and production-ready.";
+    messages.push({
+      role: "user" as const,
+      content: [
+        {
+          type: "image" as const,
+          source: {
+            type: "base64" as const,
+            media_type: imageData.mediaType,
+            data: imageData.base64,
+          },
+        },
+        {
+          type: "text" as const,
+          text: prompt || defaultPrompt,
+        },
+      ],
+    });
+  } else {
+    messages.push({
+      role: "user" as const,
+      content: prompt,
+    });
+  }
+  
   let response = client.messages
     .stream({
-      messages: messages,
-      system: systemPrompt(),
+      messages: messages as any,
+      system: systemPromptFrontend(),
       model: "claude-3-7-sonnet-20250219",
       temperature: 0,
       max_tokens: 8000,
