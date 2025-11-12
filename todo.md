@@ -95,3 +95,6 @@ frontend side bar issue
 I've to container 
 all of three four in one 
 and coder-servers(backend-frontend), db, and rest of all (backend, frontend, prisma studio, worker)
+
+
+screenshot to code 
