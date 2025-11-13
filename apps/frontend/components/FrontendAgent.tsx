@@ -44,6 +44,11 @@ export default function FrontendAgent({
   const [activeTab, setActiveTab] = useState<"codeserver" | "docs">(
     "codeserver"
   );
+  const [imageData, setImageData] = useState<{
+    base64: string;
+    mediaType: string;
+    preview: string;
+  } | null>(null);
   useEffect(() => {
     if (project?.schema) {
       setIsReady(true);
@@ -73,16 +78,46 @@ export default function FrontendAgent({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            const base64 = result.split(",")[1];
+            setImageData({
+              base64,
+              mediaType: file.type,
+              preview: result,
+            });
+          };
+          reader.readAsDataURL(file);
+        }
+        break;
+      }
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!prompt.trim() || isSubmitting) return;
+    if ((!prompt.trim() && !imageData) || isSubmitting) return;
 
     const trimmedPrompt = prompt.trim();
     const tempId = Date.now().toString();
 
     // Set optimistic prompt
+    const displayContent = imageData 
+      ? (trimmedPrompt || "[Image uploaded]")
+      : trimmedPrompt;
+    
     const newPrompt: OptimisticPrompt = {
       id: tempId,
-      content: trimmedPrompt,
+      content: displayContent,
       promptType: "USER",
     };
 
@@ -93,16 +128,21 @@ export default function FrontendAgent({
       mutate([newPrompt], false);
     }
 
+    // Store imageData before clearing
+    const currentImageData = imageData;
+
     // Clear input immediately
     setPrompt("");
+    setImageData(null);
 
     try {
-      const response = await submitPrompt(trimmedPrompt);
+      const response = await submitPrompt(trimmedPrompt, currentImageData);
       if (response) {
         await mutate();
       }
     } catch (error) {
       setPrompt(trimmedPrompt); // Restore prompt on error
+      setImageData(currentImageData); // Restore image on error
       toast.error("Failed to submit prompt", {
         description:
           error instanceof Error
@@ -249,38 +289,57 @@ export default function FrontendAgent({
         {/* Chat Messages  End */}
 
         {/* Input Section */}
-        <div className="flex gap-2">
-          <Textarea
-            style={{
-              backgroundColor: "rgba(31,31,35,0.8)",
-              color: "#f9fafb",
-              borderColor: `${theme.accent}55`,
-            }}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-            disabled={isSubmitting}
-            placeholder="Ask about UI components, styling, or frontend features..."
-            rows={1}
-            className="min-h-[40px] max-h-[200px] resize-y"
-          />
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="hover:opacity-90"
-            style={{ backgroundColor: theme.accent }}
-          >
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin text-white" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+        <div className="flex flex-col gap-2">
+          {imageData && (
+            <div className="relative inline-block w-fit">
+              <img
+                src={imageData.preview}
+                alt="Pasted screenshot"
+                className="max-w-xs max-h-32 rounded border"
+                style={{ borderColor: theme.accent }}
+              />
+              <button
+                onClick={() => setImageData(null)}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+              >
+                ×
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Textarea
+              style={{
+                backgroundColor: "rgba(31,31,35,0.8)",
+                color: "#f9fafb",
+                borderColor: `${theme.accent}55`,
+              }}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onPaste={handlePaste}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+              disabled={isSubmitting}
+              placeholder="Ask about UI components, styling, or frontend features... (or paste an image)"
+              rows={1}
+              className="min-h-[40px] max-h-[200px] resize-y"
+            />
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || (!prompt.trim() && !imageData)}
+              className="hover:opacity-90"
+              style={{ backgroundColor: theme.accent }}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 

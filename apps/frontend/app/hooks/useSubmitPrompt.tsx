@@ -14,12 +14,27 @@ export const useSubmitPrompt = (projectId: string) => {
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
 
-  const submitPrompt = async (promptContent: string) => {
+  const submitPrompt = async (
+    promptContent: string,
+    imageData?: { base64: string; mediaType: string; preview: string } | null
+  ) => {
     setIsSubmitting(true);
     setError(null);
 
     try {
       const token = await getToken();
+      const requestBody: any = {
+        projectId,
+        prompt: promptContent,
+      };
+
+      if (imageData) {
+        requestBody.imageData = {
+          base64: imageData.base64,
+          mediaType: imageData.mediaType,
+        };
+      }
+
       const response = await axios.post<SubmitPromptResponse>(
         `${BACKEND_URL}/prompt`,
         {
