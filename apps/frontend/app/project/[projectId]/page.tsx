@@ -1,13 +1,22 @@
 "use client";
+import dynamic from "next/dynamic";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 
 import Appbar from "@/components/Appbar";
 import AgentBar from "@/components/AgentBar";
-import DbAgent from "@/components/DbAgent";
-import FrontendAgent from "@/components/FrontendAgent";
-import BackendAgent from "@/components/BackendAgent";
 import { useProject } from "@/app/hooks/useProject";
+
+// Lazy load heavy agent components
+const DbAgent = dynamic(() => import("@/components/DbAgent"), {
+  loading: () => <div className="flex items-center justify-center h-screen">Loading DB Agent...</div>
+});
+const FrontendAgent = dynamic(() => import("@/components/FrontendAgent"), {
+  loading: () => <div className="flex items-center justify-center h-screen">Loading Frontend Agent...</div>
+});
+const BackendAgent = dynamic(() => import("@/components/BackendAgent"), {
+  loading: () => <div className="flex items-center justify-center h-screen">Loading Backend Agent...</div>
+});
 
 // Theme definitions for each agent
 const agentThemes = {

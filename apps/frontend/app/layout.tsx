@@ -7,15 +7,18 @@ import { Toaster } from 'sonner';
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "Software Agent",
+  description: "Prompt, click generate and watch your app come to life. Build full-stack applications with AI assistance.",
 };
 
 export default function RootLayout({

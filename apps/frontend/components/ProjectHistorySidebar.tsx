@@ -34,13 +34,19 @@ export default function ProjectHistorySidebar() {
     );
     setProjects(projectsResult.data);
   };
-  useEffect(() => {
-    fetchProjects();
-  }, []);
+
+  // Debounce utility for mousemove events
+  const debounce = (func: Function, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  };
 
   // Open sidebar when mouse is near the left edge
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = debounce((e: MouseEvent) => {
       if (e.clientX < 24) {
         setOpen(true);
       } else if (
@@ -51,9 +57,11 @@ export default function ProjectHistorySidebar() {
       ) {
         setOpen(false);
       }
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
+    }, 100);
+
+    const wrappedHandler = (e: MouseEvent) => handleMouseMove(e);
+    window.addEventListener("mousemove", wrappedHandler);
+    return () => window.removeEventListener("mousemove", wrappedHandler);
   }, []);
 
   useEffect(() => {

@@ -1,12 +1,12 @@
 import { type FC } from "react";
-import ProjectHistorySidebar from "../components/ProjectHistorySidebar";
 import Appbar from "../components/Appbar";
 import Prompt from "../components/Prompt";
+import ClientSidebar from "../components/ClientSidebar";
 
 const Home: FC = () => {
   return (
     <main className="p-4 min-h-screen bg-[rgb(10,10,10)]">
-      <ProjectHistorySidebar />
+      <ClientSidebar />
       <Appbar />
       <div className="max-w-4xl mx-auto p-32">
         <h1 className="text-2xl font-bold text-center text-white">

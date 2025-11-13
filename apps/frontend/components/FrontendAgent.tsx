@@ -387,22 +387,23 @@ export default function FrontendAgent({
 
         {/* Tab Content */}
         <div className="relative h-full">
-          {activeTab === "codeserver" && (
+          {activeTab === "codeserver" ? (
             <iframe
               src="http://localhost:8444/?folder=/Users/saif/stich/stich-worker-frontend"
               className="w-full border-0"
               title="Code Server"
               style={{ height: "calc(100vh - 64px - 56px)" }}
               allow="clipboard-read; clipboard-write"
+              loading="lazy"
             />
-          )}
-          {activeTab === "docs" && (
+          ) : (
             <iframe
               src="http://localhost:5173"
               className="w-full border-0"
               title="Frontend Preview"
               style={{ height: "calc(100vh - 64px - 56px)" }}
               allow="clipboard-read; clipboard-write"
+              loading="lazy"
             />
           )}
         </div>
