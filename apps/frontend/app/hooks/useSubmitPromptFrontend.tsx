@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@clerk/nextjs';
-import { BACKEND_URL } from '@/app/config';
 
 type SubmitPromptResponse = {
   response: {
@@ -9,7 +8,7 @@ type SubmitPromptResponse = {
   };
 };
 
-export const useSubmitPrompt = (projectId: string) => {
+export const useSubmitPromptFrontend = (projectId: string) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
@@ -21,7 +20,7 @@ export const useSubmitPrompt = (projectId: string) => {
     try {
       const token = await getToken();
       const response = await axios.post<SubmitPromptResponse>(
-        `${BACKEND_URL}/prompt`,
+        `http://localhost:9091/prompt-frontend`,
         {
           projectId,
           prompt: promptContent,

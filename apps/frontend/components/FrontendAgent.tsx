@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Code2 } from "lucide-react";
 import { toast } from "sonner";
 import { useGenerateFrontend } from "@/app/hooks/useGenerateFrontend";
-import { useSubmitPrompt } from "@/app/hooks/useSubmitPrompt";
+import { useSubmitPromptFrontend } from "@/app/hooks/useSubmitPromptFrontend";
 import type { OptimisticPrompt } from "@/types/prompt";
 import { useActions } from "@/app/hooks/useActions";
 import { Project } from "@/types/schema";
@@ -35,7 +35,7 @@ export default function FrontendAgent({
     submitPrompt,
     isSubmitting,
     error: submitError,
-  } = useSubmitPrompt(projectId);
+  } = useSubmitPromptFrontend(projectId);
   const [isReady, setIsReady] = useState(false);
 
   const [prompt, setPrompt] = useState("");
