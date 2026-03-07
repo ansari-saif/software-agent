@@ -34,7 +34,7 @@ async function streamAnthropicResponse(
       .stream({
         messages: messages,
         system: systemPrompt,
-        model: "claude-3-7-sonnet-20250219",
+        model: "claude-sonnet-4-5-20250929",
         temperature: 0,
         max_tokens: 16000,
       })
@@ -217,7 +217,7 @@ app.post("/prompt", async (req, res) => {
     .stream({
       messages: messages,
       system: systemPrompt(),
-      model: "claude-3-7-sonnet-20250219",
+      model: "claude-sonnet-4-5-20250929",
       temperature: 0,
       max_tokens: 8000,
     })
@@ -440,7 +440,7 @@ app.post("/prompt-frontend", async (req, res) => {
     .stream({
       messages: messages as any,
       system: systemPromptFrontend(),
-      model: "claude-3-7-sonnet-20250219",
+      model: "claude-sonnet-4-5-20250929",
       temperature: 0,
       max_tokens: 8000,
     })
@@ -528,7 +528,7 @@ const setPromptdB = async (req: any, res: any) => {
     .stream({
       messages: messages,
       system: systemPromptDB(),
-      model: "claude-3-7-sonnet-20250219",
+      model: "claude-sonnet-4-5-20250929",
       temperature: 0,
       max_tokens: 8000,
     })

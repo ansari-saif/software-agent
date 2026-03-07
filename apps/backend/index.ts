@@ -112,7 +112,7 @@ const setPrompt = async (req: any, res: any) => {
   let response = await client.messages.create({
     messages: message,
     system: systemPrompt("db"),
-    model: "claude-3-7-sonnet-20250219",
+    model: "claude-sonnet-4-5-20250929",
     max_tokens: 2000,
   });
 
@@ -204,7 +204,7 @@ const setBackendPrompt = async (req: any, res: any) => {
   let response = await client.messages.create({
     messages: message,
     system: systemPrompt("backend"),
-    model: "claude-3-7-sonnet-20250219",
+    model: "claude-sonnet-4-5-20250929",
     max_tokens: 2000,
   });
 
@@ -294,7 +294,7 @@ const generateBackend = async (req: any, res: any) => {
       let response = await client.messages.create({
         messages: message,
         system: systemPrompt("backend"),
-        model: "claude-3-7-sonnet-20250219",
+        model: "claude-sonnet-4-5-20250929",
         max_tokens: 16000,
       });
 
@@ -414,7 +414,7 @@ const setFrontendPrompt = async (req: any, res: any) => {
   let response = await client.messages.create({
     messages: message,
     system: systemPrompt("frontend"),
-    model: "claude-3-7-sonnet-20250219",
+    model: "claude-sonnet-4-5-20250929",
     max_tokens: 2000,
   });
 
@@ -506,7 +506,7 @@ const generateFrontend = async (req: any, res: any) => {
       let response = await client.messages.create({
         messages: message,
         system: systemPrompt("frontend"),
-        model: "claude-3-7-sonnet-20250219",
+        model: "claude-sonnet-4-5-20250929",
         max_tokens: 16000,
       });
 
