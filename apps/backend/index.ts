@@ -507,7 +507,7 @@ const generateFrontend = async (req: any, res: any) => {
         messages: message,
         system: systemPrompt("frontend"),
         model: "claude-3-7-sonnet-20250219",
-        max_tokens: 8000,
+        max_tokens: 16000,
       });
 
       // Parse and process the AI response
@@ -747,7 +747,10 @@ const processOpenApiInternal = async (projectId: string) => {
 
     // Get OpenAPI data from project
     const openApiData = project.openApi;
-    
+    // if (!openApiData) {
+    //   console.error("OpenAPI data not found for this project");
+    //   return;
+    // }
 
     // Initialize OpenAPI structure if it doesn't exist
     let openApiStructure = openApiData as any;
