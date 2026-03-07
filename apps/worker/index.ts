@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 import Anthropic from "@anthropic-ai/sdk";
 // import { AnthropicSimulator as Anthropic } from "./anthropicSimulator";
@@ -76,7 +76,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.post("/generate-backend", async (req, res) => {
+app.post("/generate-backend", async (req: Request, res: Response) => {
   const { projectId } = req.body;
   
   const project = await prismaClient.project.findUnique({
@@ -168,7 +168,7 @@ app.post("/generate-backend", async (req, res) => {
   
   res.json({ response: "success" });
 });
-app.post("/prompt", async (req, res) => {
+app.post("/prompt", async (req: Request, res: Response) => {
   const { prompt, projectId } = req.body;
 
   const client = new Anthropic();
@@ -253,7 +253,7 @@ app.post("/prompt", async (req, res) => {
   res.json({ response });
 });
 
-app.post("/generate-frontend", async (req, res) => {
+app.post("/generate-frontend", async (req: Request, res: Response) => {
   const { projectId } = req.body;
 
   const project = await prismaClient.project.findUnique({
@@ -353,7 +353,7 @@ app.post("/generate-frontend", async (req, res) => {
 
   res.json({ response: "success" });
 });
-app.post("/prompt-frontend", async (req, res) => {
+app.post("/prompt-frontend", async (req: Request, res: Response) => {
   const { prompt, projectId, imageData } = req.body;
 
   const client = new Anthropic();
@@ -477,7 +477,7 @@ app.post("/prompt-frontend", async (req, res) => {
   res.json({ response });
 });
 
-const setPromptdB = async (req: any, res: any) => {
+const setPromptDB = async (req: Request, res: Response) => {
   let { prompt, projectId } = req.body;
   prompt = prompt.trim();
 
@@ -564,7 +564,7 @@ const setPromptdB = async (req: any, res: any) => {
 
   res.json({ response });
 };
-app.post("/prompt-db", setPromptdB);
+app.post("/prompt-db", setPromptDB);
 
 app.listen(9091, () => {
   console.log("Server is running on port 9091");
