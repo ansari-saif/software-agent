@@ -7,6 +7,7 @@ import axios from "axios";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { BACKEND_URL } from "../config";
+import { authHeaders, requireAuthToken } from "@/lib/authToken";
 type Project = {
   id: string;
   description: string;
@@ -21,24 +22,26 @@ export default function ProjectHistorySidebar() {
   const router = useRouter();
 
   const fetchProjects = async () => {
-    const token = await getToken();
-    console.log({ BACKEND_URL });
+    const token = await requireAuthToken(getToken, { silent: true });
+    if (!token) {
+      setProjects([]);
+      return;
+    }
     const projectsResult = await axios.post(
       `${BACKEND_URL}/projects`,
       {},
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      { headers: authHeaders(token) }
     );
     setProjects(projectsResult.data);
   };
 
   // Debounce utility for mousemove events
-  const debounce = (func: Function, wait: number) => {
+  const debounce = <T extends unknown[]>(
+    func: (...args: T) => void,
+    wait: number
+  ) => {
     let timeout: NodeJS.Timeout;
-    return (...args: any[]) => {
+    return (...args: T) => {
       clearTimeout(timeout);
       timeout = setTimeout(() => func(...args), wait);
     };

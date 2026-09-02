@@ -3,17 +3,18 @@ import axios from 'axios';
 import { BACKEND_URL } from '../config';
 import { useAuth } from '@clerk/nextjs';
 import { OptimisticPrompt } from '@/types/prompt';
+import { authHeaders, requireAuthToken } from '@/lib/authToken';
 
 export function useActions(projectId: string, agentType: string) {
   const { getToken } = useAuth();
 
   const fetcher = async (url: string) => {
-    const token = await getToken();
-    const response = await axios.get<OptimisticPrompt[]>(url+"?agentType="+agentType, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const token = await requireAuthToken(getToken, { silent: true });
+    if (!token) throw new Error('Please sign in to continue');
+    const response = await axios.get<OptimisticPrompt[]>(
+      `${url}?agentType=${agentType}`,
+      { headers: authHeaders(token) }
+    );
     return response.data;
   };
 
@@ -29,4 +30,4 @@ export function useActions(projectId: string, agentType: string) {
     error: error ? error.message : null,
     mutate,
   };
-} 
+}

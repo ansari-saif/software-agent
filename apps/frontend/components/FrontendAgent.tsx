@@ -5,6 +5,7 @@ import { Loader2, Send, Code2 } from "lucide-react";
 import { toast } from "sonner";
 import { useGenerateFrontend } from "@/app/hooks/useGenerateFrontend";
 import { useSubmitPromptFrontend } from "@/app/hooks/useSubmitPromptFrontend";
+import { useIdeSession } from "@/app/hooks/useIdeSession";
 import type { OptimisticPrompt } from "@/types/prompt";
 import { useActions } from "@/app/hooks/useActions";
 import { Project } from "@/types/schema";
@@ -36,6 +37,8 @@ export default function FrontendAgent({
     isSubmitting,
     error: submitError,
   } = useSubmitPromptFrontend(projectId);
+  const { session: ideSession, isLoading: ideLoading, error: ideError } =
+    useIdeSession("frontend");
   const [isReady, setIsReady] = useState(false);
 
   const [prompt, setPrompt] = useState("");
@@ -388,17 +391,28 @@ export default function FrontendAgent({
         {/* Tab Content */}
         <div className="relative h-full">
           {activeTab === "codeserver" ? (
-            <iframe
-              src="http://localhost:8444/?folder=/Users/saif/stich/stich-worker-frontend"
-              className="w-full border-0"
-              title="Code Server"
-              style={{ height: "calc(100vh - 64px - 56px)" }}
-              allow="clipboard-read; clipboard-write"
-              loading="lazy"
-            />
+            ideLoading ? (
+              <div className="flex h-full items-center justify-center text-gray-400">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Starting IDE…
+              </div>
+            ) : ideError || !ideSession ? (
+              <div className="flex h-full items-center justify-center text-red-400 px-4 text-center">
+                {ideError || "IDE session unavailable"}
+              </div>
+            ) : (
+              <iframe
+                src={ideSession.url}
+                className="w-full border-0"
+                title="Code Server"
+                style={{ height: "calc(100vh - 64px - 56px)" }}
+                allow="clipboard-read; clipboard-write"
+                loading="lazy"
+              />
+            )
           ) : (
             <iframe
-              src="http://localhost:5173"
+              src={ideSession?.previewUrl || ""}
               className="w-full border-0"
               title="Frontend Preview"
               style={{ height: "calc(100vh - 64px - 56px)" }}

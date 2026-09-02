@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useActions } from "@/app/hooks/useActions";
 import { useSubmitBackendPrompt } from "@/app/hooks/useSubmitBackendPrompt";
 import { useGenerateBackend } from "@/app/hooks/useGenerateBackend";
+import { useIdeSession } from "@/app/hooks/useIdeSession";
 
 import type { OptimisticPrompt } from "@/types/prompt";
 import { Project } from "@/types/schema";
@@ -35,6 +36,8 @@ export default function BackendAgent({
   } = useActions(projectId, "BACKEND");
 
   const { generateBackend, isGenerating } = useGenerateBackend(projectId);
+  const { session: ideSession, isLoading: ideLoading, error: ideError } =
+    useIdeSession("backend");
 
   const [isReady, setIsReady] = useState(false);
   const [activeTab, setActiveTab] = useState<"codeserver" | "docs">(
@@ -331,17 +334,28 @@ export default function BackendAgent({
         {/* Tab Content */}
         <div className="relative h-full">
           {activeTab === "codeserver" && (
-            <iframe
-              src="http://localhost:8443/?folder=/Users/saif/stich/stich-worker"
-              className="w-full border-0"
-              title="Code Server"
-              style={{ height: "calc(100vh - 64px - 56px)" }}
-              allow="clipboard-read; clipboard-write"
-            />
+            ideLoading ? (
+              <div className="flex h-full items-center justify-center text-gray-400">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Starting IDE…
+              </div>
+            ) : ideError || !ideSession ? (
+              <div className="flex h-full items-center justify-center text-red-400 px-4 text-center">
+                {ideError || "IDE session unavailable"}
+              </div>
+            ) : (
+              <iframe
+                src={ideSession.url}
+                className="w-full border-0"
+                title="Code Server"
+                style={{ height: "calc(100vh - 64px - 56px)" }}
+                allow="clipboard-read; clipboard-write"
+              />
+            )
           )}
           {activeTab === "docs" && (
             <iframe
-              src="http://localhost:8000/docs/"
+              src={ideSession?.docsUrl || ideSession?.previewUrl || ""}
               className="w-full border-0"
               title="API Documentation"
               style={{

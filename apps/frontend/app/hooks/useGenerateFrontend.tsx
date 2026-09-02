@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from '@clerk/nextjs';
-// import { BACKEND_URL } from '../config';
+import { WORKER_URL } from '@/app/config';
+import { authHeaders, requireAuthToken } from '@/lib/authToken';
 
 export function useGenerateFrontend(projectId: string) {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -10,12 +11,13 @@ export function useGenerateFrontend(projectId: string) {
   const generateFrontend = async () => {
     setIsGenerating(true);
     try {
-      const token = await getToken();
-      const response = await fetch(`http://localhost:9091/generate-frontend`, {
+      const token = await requireAuthToken(getToken);
+      if (!token) return;
+      const response = await fetch(`${WORKER_URL}/generate-frontend`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...authHeaders(token),
         },
         body: JSON.stringify({
           projectId
@@ -43,4 +45,4 @@ export function useGenerateFrontend(projectId: string) {
     generateFrontend,
     isGenerating,
   };
-} 
+}

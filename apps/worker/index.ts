@@ -73,9 +73,27 @@ async function streamAnthropicResponse(
 }
 
 const app = express();
-app.use(cors());
+const corsOrigins = (
+  process.env.CORS_ORIGINS ||
+  "http://localhost:3000,https://agent.ansarisaif.com"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: corsOrigins,
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+app.get("/health", (_req: Request, res: Response) => {
+  res.json({ ok: true, service: "worker" });
+});
+
 app.post("/generate-backend", async (req: Request, res: Response) => {
   const { projectId } = req.body;
   
@@ -566,6 +584,7 @@ const setPromptDB = async (req: Request, res: Response) => {
 };
 app.post("/prompt-db", setPromptDB);
 
-app.listen(9091, () => {
-  console.log("Server is running on port 9091");
+const PORT = Number(process.env.PORT || 9091);
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });

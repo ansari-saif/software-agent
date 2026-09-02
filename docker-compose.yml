@@ -1,0 +1,183 @@
+name: software-agent
+
+services:
+  postgres:
+    image: public.ecr.aws/docker/library/postgres:15
+    container_name: software-agent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-software_agent}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-software_agent}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1g
+    cpus: "1.0"
+    networks: [software-agent]
+
+  db-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    container_name: software-agent-db-init
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-software_agent}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks: [software-agent]
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    image: software-agent-backend:latest
+    container_name: software-agent-backend
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-software_agent}
+      WORKSPACE_ROOT: /data/workspaces
+      HOST_WORKSPACE_ROOT: ${HOST_WORKSPACE_ROOT:-/data/software-agent/workspaces}
+      IDE_DOCKER_NETWORK: software-agent_software-agent
+      IDE_BASE_DOMAIN: ${IDE_BASE_DOMAIN:-ide.ansarisaif.com}
+      MAX_CONCURRENT_IDE: ${MAX_CONCURRENT_IDE:-3}
+      IDE_MEMORY: ${IDE_MEMORY:-4g}
+      IDE_CPUS: ${IDE_CPUS:-1}
+      IDE_IDLE_MINUTES: ${IDE_IDLE_MINUTES:-30}
+      IDE_BACKEND_IMAGE: software-agent-code-server-backend:latest
+      IDE_FRONTEND_IMAGE: software-agent-code-server-frontend:latest
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://agent.ansarisaif.com,http://localhost:3000}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_WORKSPACE_ROOT:-/data/software-agent/workspaces}:/data/workspaces
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    mem_limit: 1g
+    cpus: "1.0"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [software-agent]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    image: software-agent-worker:latest
+    container_name: software-agent-worker
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      PORT: 9091
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-software_agent}
+      WORKSPACE_ROOT: /data/workspaces
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://agent.ansarisaif.com,http://localhost:3000}
+    ports:
+      - "127.0.0.1:9091:9091"
+    volumes:
+      - ${HOST_WORKSPACE_ROOT:-/data/software-agent/workspaces}:/data/workspaces
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    mem_limit: 1.5g
+    cpus: "1.5"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:9091/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [software-agent]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+      args:
+        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-https://agent-api.ansarisaif.com}
+        NEXT_PUBLIC_WORKER_URL: ${NEXT_PUBLIC_WORKER_URL:-https://agent-worker.ansarisaif.com}
+        NEXT_PUBLIC_IDE_BASE_DOMAIN: ${NEXT_PUBLIC_IDE_BASE_DOMAIN:-ide.ansarisaif.com}
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+    image: software-agent-frontend:latest
+    container_name: software-agent-frontend
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+    ports:
+      - "127.0.0.1:3010:3000"
+    depends_on:
+      - backend
+      - worker
+    mem_limit: 1g
+    cpus: "1.0"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks: [software-agent]
+
+  traefik:
+    image: public.ecr.aws/docker/library/traefik:v3.3
+    container_name: software-agent-traefik
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=software-agent_software-agent
+      - --entrypoints.web.address=:80
+      - --api.insecure=true
+      - --ping=true
+    ports:
+      - "127.0.0.1:8888:80"
+      - "127.0.0.1:8889:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    mem_limit: 256m
+    cpus: "0.5"
+    networks: [software-agent]
+
+networks:
+  software-agent:
+    name: software-agent_software-agent
+
+volumes:
+  postgres_data:

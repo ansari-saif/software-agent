@@ -1,8 +1,9 @@
 import { useState } from "react";
 import axios from "axios";
-// import { BACKEND_URL } from "../config";
+import { WORKER_URL } from "@/app/config";
 import { useAuth } from "@clerk/nextjs";
 import { OptimisticPrompt } from "@/types/prompt";
+import { authHeaders, requireAuthToken } from "@/lib/authToken";
 
 export function useSubmitBackendPrompt(projectId: string) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -16,18 +17,18 @@ export function useSubmitBackendPrompt(projectId: string) {
     setError(null);
 
     try {
-      const token = await getToken();
+      const token = await requireAuthToken(getToken);
+      if (!token) {
+        setError("Please sign in to continue");
+        return null;
+      }
       const response = await axios.post<OptimisticPrompt>(
-        `http://localhost:9091/prompt`,
+        `${WORKER_URL}/prompt`,
         {
           projectId,
           prompt: content,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: authHeaders(token) }
       );
 
       return response.data;

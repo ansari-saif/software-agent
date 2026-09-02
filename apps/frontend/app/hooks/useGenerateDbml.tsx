@@ -2,6 +2,7 @@ import axios from 'axios';
 import { BACKEND_URL } from '../config';
 import { useAuth } from '@clerk/nextjs';
 import { useState } from 'react';
+import { authHeaders, requireAuthToken } from '@/lib/authToken';
 
 interface DbmlResponse {
   dbml_id: string;
@@ -21,15 +22,12 @@ export function useGenerateDbml(projectId: string) {
     setError(null);
     
     try {
-      const token = await getToken();
+      const token = await requireAuthToken(getToken);
+      if (!token) throw new Error('Please sign in to continue');
       const response = await axios.post<DbmlResponse>(
         `${BACKEND_URL}/project/${projectId}/generate-dbml`,
         {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: authHeaders(token) }
       );
 
       const newData = response.data;

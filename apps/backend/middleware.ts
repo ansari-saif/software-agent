@@ -12,9 +12,9 @@ export function authMiddleware(
 ) {
   const authHeader = req.headers.authorization; // Bearer <token>
   const token = authHeader?.split(" ")[1];
-  
-  if (!token) {
-    res.status(401).json({ message: "Unauthorized" });
+
+  if (!token || token === "null" || token === "undefined") {
+    res.status(401).json({ message: "Unauthorized — sign in required" });
     return;
   }
 

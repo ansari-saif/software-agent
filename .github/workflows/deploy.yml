@@ -1,0 +1,38 @@
+name: Deploy software-agent
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_public:
+        description: "Skip public HTTPS smoke (SMOKE_SKIP_PUBLIC=1)"
+        required: false
+        default: "0"
+
+concurrency:
+  group: deploy-software-agent
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: SSH and deploy software-agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 55m
+          script: |
+            set -euo pipefail
+            cd /root/software-agent
+            export DEPLOY_BRANCH=main
+            export SMOKE_SKIP_PUBLIC="${{ github.event.inputs.skip_public || '0' }}"
+            bash scripts/deploy.sh

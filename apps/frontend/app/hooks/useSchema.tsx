@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '@clerk/nextjs';
 import { BACKEND_URL } from '@/app/config';
 import { Schema } from '@/types/schema';
+import { authHeaders, requireAuthToken } from '@/lib/authToken';
 
 export const useSchema = (projectId: string) => {
   const [schemaData, setSchemaData] = useState<Schema | null>(null);
@@ -14,15 +15,15 @@ export const useSchema = (projectId: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const token = await getToken();
+      const token = await requireAuthToken(getToken);
+      if (!token) {
+        setError('Please sign in to continue');
+        return;
+      }
       await axios.post(
         `${BACKEND_URL}/project/${projectId}/schema`,
         { schema },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: authHeaders(token) }
       );
       setSchemaData(schema);
     } catch (error) {

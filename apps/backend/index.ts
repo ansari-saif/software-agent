@@ -13,12 +13,32 @@ import dotenv from "dotenv";
 import { isModuleArray } from "./types/dbml";
 import { runProjectCommand, writeFiles } from "./utils/fileWriter";
 import { addModule } from "./services/addModuleAst";
+import {
+  createOrReuseIdeSession,
+  startIdeIdleReaper,
+  stopIdeSession,
+  type IdeKind,
+} from "./services/ideSession";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+
+const corsOrigins = (
+  process.env.CORS_ORIGINS ||
+  "http://localhost:3000,https://agent.ansarisaif.com"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: corsOrigins,
+    credentials: true,
+  })
+);
 function toTitleCase(str: string) {
   return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
 }
@@ -859,6 +879,46 @@ const getActions = async (req: any, res: any) => {
 // FIXME: ADD AUTH
 app.get("/actions/:projectId", getActions);
 
-app.listen(8080, () => {
-  console.log("Server is rurnning on port 8080");
+app.get("/health", (_req, res) => {
+  res.json({ ok: true, service: "backend" });
+});
+
+const createIdeSession = async (req: any, res: any) => {
+  const kind = (req.body?.kind || "backend") as IdeKind;
+  if (kind !== "backend" && kind !== "frontend") {
+    res.status(400).json({ error: "kind must be backend or frontend" });
+    return;
+  }
+  try {
+    const session = await createOrReuseIdeSession(req.userId!, kind);
+    res.json(session);
+  } catch (error: any) {
+    const status = error?.status || 500;
+    console.error("IDE session error:", error);
+    res.status(status).json({
+      error: error instanceof Error ? error.message : "Failed to create IDE session",
+    });
+  }
+};
+
+const deleteIdeSession = async (req: any, res: any) => {
+  const kind = (req.body?.kind || req.query?.kind || "backend") as IdeKind;
+  try {
+    const stopped = await stopIdeSession(req.userId!, kind);
+    res.json({ ok: true, stopped });
+  } catch (error) {
+    console.error("IDE stop error:", error);
+    res.status(500).json({ error: "Failed to stop IDE session" });
+  }
+};
+
+app.post("/ide/session", authMiddleware, createIdeSession);
+app.delete("/ide/session", authMiddleware, deleteIdeSession);
+
+app.get("/projects", authMiddleware, getProjects);
+
+const PORT = Number(process.env.PORT || 8080);
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+  startIdeIdleReaper();
 });

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@clerk/nextjs';
-import { BACKEND_URL } from '@/app/config';
+import { WORKER_URL } from '@/app/config';
+import { authHeaders, requireAuthToken } from '@/lib/authToken';
 
 type SubmitPromptResponse = {
   response: {
@@ -22,8 +23,14 @@ export const useSubmitPromptFrontend = (projectId: string) => {
     setError(null);
 
     try {
-      const token = await getToken();
-      const requestBody: any = {
+      const token = await requireAuthToken(getToken);
+      if (!token) throw new Error('Please sign in to continue');
+
+      const requestBody: {
+        projectId: string;
+        prompt: string;
+        imageData?: { base64: string; mediaType: string };
+      } = {
         projectId,
         prompt: promptContent,
       };
@@ -36,13 +43,9 @@ export const useSubmitPromptFrontend = (projectId: string) => {
       }
 
       const response = await axios.post<SubmitPromptResponse>(
-        `http://localhost:9091/prompt-frontend`,
+        `${WORKER_URL}/prompt-frontend`,
         requestBody,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: authHeaders(token) }
       );
       
       return response.data;
@@ -60,4 +63,4 @@ export const useSubmitPromptFrontend = (projectId: string) => {
     isSubmitting,
     error,
   };
-}; 
+};
