@@ -121,11 +121,11 @@ describe("helpers", () => {
     const manager = new SandboxManager(config, pino({ level: "silent" }), {} as Docker);
     expect(manager.buildUrls(PROJECT, "a b", 5173, "/app?x=1")).toEqual({
       ideUrl: `http://${PROJECT}.sbx.test/?folder=/workspace&tkn=a%20b`,
-      previewUrl: `http://${PROJECT}.sbx.test/proxy/5173/app?x=1&tkn=a%20b`,
+      previewUrl: `http://${PROJECT}-5173.sbx.test/app?x=1&tkn=a%20b`,
     });
     expect(manager.buildUrls(PROJECT, null, 3000, "")).toEqual({
       ideUrl: `http://${PROJECT}.sbx.test/?folder=/workspace`,
-      previewUrl: `http://${PROJECT}.sbx.test/proxy/3000/`,
+      previewUrl: `http://${PROJECT}-3000.sbx.test/`,
     });
   });
 

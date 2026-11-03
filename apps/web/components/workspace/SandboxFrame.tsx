@@ -86,6 +86,29 @@ export function SandboxFrame({
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const frameKey = `${frame.src}#${frame.reloadKey}`;
   const loaded = loadedKey === frameKey;
+  // Browsers block http:// frames inside an https:// page (mixed content). Sandbox URLs
+  // come from a client-side fetch, so this never runs during server rendering.
+  const mixedContent =
+    typeof window !== "undefined" && window.location.protocol === "https:" && src.startsWith("http:");
+
+  if (mixedContent) {
+    return (
+      <PanelMessage
+        icon={<ExternalLink className="size-6 text-muted-foreground" aria-hidden />}
+        title={`${title} opens in a new tab`}
+        action={
+          <Button asChild size="sm">
+            <a href={src} target="_blank" rel="noopener noreferrer">
+              Open {title.toLowerCase()}
+              <ExternalLink aria-hidden />
+            </a>
+          </Button>
+        }
+      >
+        Sandboxes are served over plain HTTP for now, which browsers won&apos;t embed in this page.
+      </PanelMessage>
+    );
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">

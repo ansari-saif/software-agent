@@ -173,7 +173,7 @@ netfilter-persistent save >/dev/null
 
 echo "==> [6] nginx site"
 if [ -f /etc/letsencrypt/live/agent.ansarisaif.com/fullchain.pem ] \
-  && [ -f /etc/letsencrypt/live/sandbox.ansarisaif.com/fullchain.pem ]; then
+  && [ -f /etc/nginx/ssl/sandbox.ansarisaif.com/fullchain.pem ]; then
   cp "$SRC/deploy/nginx-software-agent.conf" /etc/nginx/sites-available/software-agent.conf
   ln -sfn /etc/nginx/sites-available/software-agent.conf /etc/nginx/sites-enabled/software-agent.conf
   nginx -t
@@ -181,7 +181,7 @@ if [ -f /etc/letsencrypt/live/agent.ansarisaif.com/fullchain.pem ] \
 else
   echo "SKIP: TLS certificates missing. Issue them first (see header of deploy/nginx-software-agent.conf):"
   echo "  certbot certonly --webroot -w /var/www/letsencrypt -d agent.ansarisaif.com -d agent-api.ansarisaif.com"
-  echo "  certbot certonly --manual --preferred-challenges dns -d '*.sandbox.ansarisaif.com'"
+  echo "  acme.sh --issue --dns dns_netlify -d '*.sandbox.ansarisaif.com' (+ --install-cert, see the header)"
   echo "then re-run this script."
 fi
 

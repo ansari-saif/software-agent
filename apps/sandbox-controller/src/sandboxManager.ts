@@ -15,6 +15,10 @@ const LABEL_PROJECT = "com.software-agent.project-id";
 const LABEL_USER = "com.software-agent.user-id";
 const CAPACITY_LOCK_ID = 842001;
 const SESSION_COOKIE = "sbx_session";
+/** uid/gid of the sandbox user; matches the controller's `node` user that owns workspaces. */
+const SANDBOX_UID = 1000;
+/** Port of the preview proxy baked into the sandbox image (apps/sandbox-image/preview-proxy.js). */
+const PREVIEW_PROXY_PORT = 8899;
 const MAX_EXEC_OUTPUT_BYTES = 512 * 1024;
 
 export interface SandboxConfig {
@@ -123,7 +127,10 @@ export class SandboxManager {
     const ideUrl = withToken(`${base}/?folder=/workspace`);
     if (!previewPort) return { ideUrl, previewUrl: null };
     const p = previewPath?.startsWith("/") ? previewPath : `/${previewPath ?? ""}`;
-    return { ideUrl, previewUrl: withToken(`${base}/proxy/${previewPort}${p}`) };
+    // Previews get their own host so apps are served at "/" and absolute asset paths work.
+    // One label (<project>-<port>) so the *.<baseDomain> wildcard certificate covers it.
+    const previewBase = `${this.config.protocol}://${projectId}-${previewPort}.${this.config.baseDomain}`;
+    return { ideUrl, previewUrl: withToken(`${previewBase}${p}`) };
   }
 
   /** Adopt labeled containers that match DB rows; remove orphans (ARC-02). */
@@ -263,7 +270,12 @@ export class SandboxManager {
       const container = await this.docker.createContainer({
         Image: this.config.image,
         name,
-        Env: ["PUID=1000", "PGID=1000", "DEFAULT_WORKSPACE=/workspace", "TZ=UTC"],
+        Env: [
+          `PUID=${SANDBOX_UID}`,
+          `PGID=${SANDBOX_UID}`,
+          "DEFAULT_WORKSPACE=/workspace",
+          "TZ=UTC",
+        ],
         Cmd: undefined,
         HostConfig: {
           Binds: [`${this.config.hostWorkspaceRoot}/${userId}/${projectId}:/workspace`],
@@ -286,10 +298,19 @@ export class SandboxManager {
           [`traefik.http.routers.${router}.rule`]: `Host(\`${projectId}.${this.config.baseDomain}\`)`,
           [`traefik.http.routers.${router}.entrypoints`]: "web",
           [`traefik.http.routers.${router}.middlewares`]: "sandbox-auth@docker",
+          [`traefik.http.routers.${router}.service`]: router,
           [`traefik.http.services.${router}.loadbalancer.server.port`]: "8443",
+          // <project>-<port>.<baseDomain> goes to the in-sandbox preview proxy, which
+          // forwards to that port with `Host: localhost:<port>` (see sandbox-image).
+          [`traefik.http.routers.${router}-preview.rule`]: `HostRegexp(\`^${projectId}-[0-9]{2,5}\\.${this.config.baseDomain.replace(/\./g, "\\.")}$\`)`,
+          [`traefik.http.routers.${router}-preview.entrypoints`]: "web",
+          [`traefik.http.routers.${router}-preview.middlewares`]: "sandbox-auth@docker",
+          [`traefik.http.routers.${router}-preview.service`]: `${router}-preview`,
+          [`traefik.http.services.${router}-preview.loadbalancer.server.port`]: String(PREVIEW_PROXY_PORT),
         },
       });
       await container.start();
+      await this.waitUntilReady(container);
       await prismaClient.sandbox.update({
         where: { projectId },
         data: { containerId: container.id, status: "RUNNING", lastSeenAt: new Date() },
@@ -302,6 +323,36 @@ export class SandboxManager {
       });
       throw err;
     }
+  }
+
+  /**
+   * Wait until the container's init has finished (user remap and ownership fixes), which
+   * code-server answering /healthz implies. Execs before that run with stale ownership.
+   */
+  private async waitUntilReady(container: Docker.Container, timeoutMs = 60_000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        const probe = await container.exec({
+          Cmd: ["curl", "-sf", "-o", "/dev/null", "http://127.0.0.1:8443/healthz"],
+          AttachStdout: false,
+          AttachStderr: false,
+        });
+        await probe.start({ Detach: true });
+        for (let i = 0; i < 20; i++) {
+          const info = await probe.inspect();
+          if (!info.Running) {
+            if (info.ExitCode === 0) return;
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 250));
+        }
+      } catch {
+        // container still starting
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    this.log.warn({ containerId: container.id }, "sandbox not ready before timeout; continuing");
   }
 
   async stop(projectId: string, deleteWorkspace = false): Promise<void> {
@@ -335,7 +386,8 @@ export class SandboxManager {
     const execution = await this.docker.getContainer(containerId).exec({
       Cmd: ["/bin/bash", "-lc", input.command],
       WorkingDir: cwd === "." ? "/workspace" : `/workspace/${cwd}`,
-      User: "abc",
+      // Numeric: right after start, /init may not have remapped `abc` (uid 911) to PUID yet.
+      User: `${SANDBOX_UID}:${SANDBOX_UID}`,
       AttachStdout: true,
       AttachStderr: true,
     });
@@ -444,7 +496,7 @@ export class SandboxManager {
     const host = (input.host.split(":")[0] ?? "").toLowerCase();
     const suffix = `.${this.config.baseDomain.toLowerCase()}`;
     if (!host.endsWith(suffix)) return { ok: false };
-    const projectId = host.slice(0, -suffix.length);
+    const projectId = host.slice(0, -suffix.length).replace(/-[0-9]{2,5}$/, "");
     if (!/^[a-f0-9-]{36}$/.test(projectId)) return { ok: false };
 
     const row = await prismaClient.sandbox.findUnique({ where: { projectId } });

@@ -44,5 +44,14 @@ RUN mkdir -p /workspace /config/data/User /config/.config /config/.local /config
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod 755 /entrypoint.sh
 
+# Preview proxy for `<port>.<project>.<domain>`, supervised by s6 next to code-server.
+COPY preview-proxy.js /usr/local/lib/preview-proxy.js
+RUN SVC=/etc/s6-overlay/s6-rc.d/svc-preview-proxy && \
+    mkdir -p "$SVC/dependencies.d" && \
+    touch "$SVC/dependencies.d/init-services" /etc/s6-overlay/s6-rc.d/user/contents.d/svc-preview-proxy && \
+    echo longrun > "$SVC/type" && \
+    printf '#!/usr/bin/with-contenv bash\nexec s6-setuidgid abc /usr/local/bin/node /usr/local/lib/preview-proxy.js\n' > "$SVC/run" && \
+    chmod 755 "$SVC/run" && chmod 644 /usr/local/lib/preview-proxy.js
+
 WORKDIR /workspace
 ENTRYPOINT ["/entrypoint.sh"]
