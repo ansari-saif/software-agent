@@ -1,52 +1,146 @@
-FROM public.ecr.aws/docker/library/node:20-bookworm-slim AS base
+# syntax=docker/dockerfile:1.7
+# Multi-stage build for every Node service in the monorepo.
+# Targets: api, worker, sandbox-controller, web, migrate.
+#   docker build --target api -t software-agent-api .
+# The sandbox (code-server) image is built separately from apps/sandbox-image.
+
+ARG NODE_IMAGE=public.ecr.aws/docker/library/node:20.18.3-bookworm-slim
+
+# ---------------------------------------------------------------------------
+# base: toolchain for installing and building (never shipped)
+# ---------------------------------------------------------------------------
+FROM ${NODE_IMAGE} AS base
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    NEXT_TELEMETRY_DISABLED=1 \
+    TURBO_TELEMETRY_DISABLED=1 \
+    CHECKPOINT_DISABLE=1
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates python3 make g++ curl \
+  && apt-get install -y --no-install-recommends openssl ca-certificates python3 make g++ \
   && rm -rf /var/lib/apt/lists/* \
   && corepack enable \
-  && npm install -g pnpm@9.0.0 --force --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+  && corepack prepare pnpm@9.0.0 --activate
 WORKDIR /app
 
+# ---------------------------------------------------------------------------
+# deps: resolve the lockfile into the pnpm store (cached on lockfile changes only)
+# ---------------------------------------------------------------------------
 FROM base AS deps
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
-COPY packages ./packages
-COPY apps ./apps
-RUN pnpm install --frozen-lockfile
-RUN pnpm --filter db generate
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store \
+  && pnpm fetch --frozen-lockfile
+COPY . .
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile --offline
 
-FROM deps AS migrate
-WORKDIR /app/packages/db
-CMD ["pnpm", "run", "migrate:deploy"]
+# ---------------------------------------------------------------------------
+# build: compile backend services + packages to dist/ and stage prod bundles
+# ---------------------------------------------------------------------------
+FROM deps AS build
+RUN pnpm --filter db generate \
+  && pnpm exec turbo run build \
+       --filter=api... \
+       --filter=worker... \
+       --filter=sandbox-controller... \
+       --filter=db
 
-FROM deps AS backend
-ENV PORT=8080
-WORKDIR /app/apps/backend
-CMD ["pnpm", "run", "start"]
+# pnpm deploy copies each app with an isolated, prod-only node_modules. It applies
+# package-level .gitignore files, which drop dist/, so build output is copied in
+# explicitly for the app and for every injected workspace package. The generated Prisma
+# client lives outside @prisma/client and is copied into every bundle that uses it.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    set -eu; \
+    for pkg in api worker sandbox-controller; do \
+      pnpm --filter "$pkg" deploy --prod "/out/$pkg"; \
+      rm -rf "/out/$pkg/dist" "/out/$pkg/src" "/out/$pkg/.turbo"; \
+      cp -R "/app/apps/$pkg/dist" "/out/$pkg/dist"; \
+      test -f "/out/$pkg/dist/index.js"; \
+    done; \
+    pnpm --filter db deploy "/out/db"; \
+    for injected in /out/*/node_modules/.pnpm/*@file+packages+*; do \
+      dir="$(echo "$injected" | sed -E 's#.*@file\+packages\+([^_/]+).*#\1#')"; \
+      name="$(node -p "require('/app/packages/$dir/package.json').name")"; \
+      if [ -d "/app/packages/$dir/dist" ]; then \
+        rm -rf "$injected/node_modules/$name/dist"; \
+        cp -R "/app/packages/$dir/dist" "$injected/node_modules/$name/dist"; \
+      fi; \
+    done; \
+    prisma_src="$(ls -d /app/node_modules/.pnpm/@prisma+client@*/node_modules/.prisma | head -n1)"; \
+    for dest in /out/*/node_modules/.pnpm/@prisma+client@*/node_modules; do \
+      rm -rf "$dest/.prisma"; cp -R "$prisma_src" "$dest/.prisma"; \
+    done
 
-FROM deps AS worker
-ENV PORT=9091
-WORKDIR /app/apps/worker
-CMD ["pnpm", "run", "start"]
-
-FROM deps AS frontend-build
-ARG NEXT_PUBLIC_BACKEND_URL=https://agent-api.ansarisaif.com
-ARG NEXT_PUBLIC_WORKER_URL=https://agent-worker.ansarisaif.com
-ARG NEXT_PUBLIC_IDE_BASE_DOMAIN=ide.ansarisaif.com
+# ---------------------------------------------------------------------------
+# web-build: Next.js standalone build (separate so NEXT_PUBLIC_* args don't bust
+# the backend build cache)
+# ---------------------------------------------------------------------------
+FROM build AS web-build
+ARG NEXT_PUBLIC_API_URL=https://agent-api.ansarisaif.com
+ARG NEXT_PUBLIC_SANDBOX_BASE_DOMAIN=sandbox.ansarisaif.com
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
-ENV NEXT_PUBLIC_WORKER_URL=$NEXT_PUBLIC_WORKER_URL
-ENV NEXT_PUBLIC_IDE_BASE_DOMAIN=$NEXT_PUBLIC_IDE_BASE_DOMAIN
-ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-ENV NEXT_TELEMETRY_DISABLED=1
-WORKDIR /app/apps/frontend
-RUN pnpm run build
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_PUBLIC_SANDBOX_BASE_DOMAIN=$NEXT_PUBLIC_SANDBOX_BASE_DOMAIN \
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+RUN mkdir -p apps/web/public \
+  && pnpm exec turbo run build --filter=@repo/web...
+RUN test -f apps/web/.next/standalone/apps/web/server.js \
+  || (echo "apps/web must set output: 'standalone' in next.config.ts" >&2; exit 1)
 
-# Reuse deps image (pnpm already present) — avoid second apt/corepack pull
-FROM deps AS frontend
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-COPY --from=frontend-build /app/apps/frontend/.next /app/apps/frontend/.next
-COPY --from=frontend-build /app/apps/frontend/public /app/apps/frontend/public
-WORKDIR /app/apps/frontend
+# ---------------------------------------------------------------------------
+# runtime: minimal shared base for shipped images
+# ---------------------------------------------------------------------------
+FROM ${NODE_IMAGE} AS runtime
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    CHECKPOINT_DISABLE=1 \
+    PRISMA_HIDE_UPDATE_MESSAGE=1
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# Per-app runtime images. Files stay root-owned so the node user cannot modify code.
+# ---------------------------------------------------------------------------
+FROM runtime AS api
+COPY --from=build /out/api /app
+ENV PORT=8080
+EXPOSE 8080
+USER node
+CMD ["node", "dist/index.js"]
+
+FROM runtime AS worker
+COPY --from=build /out/worker /app
+ENV PORT=9091
+EXPOSE 9091
+USER node
+CMD ["node", "dist/index.js"]
+
+FROM runtime AS sandbox-controller
+# tar streams workspace archives in and out of sandbox containers.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends tar \
+  && rm -rf /var/lib/apt/lists/*
+COPY --from=build /out/sandbox-controller /app
+ENV PORT=7070
+EXPOSE 7070
+USER node
+CMD ["node", "dist/index.js"]
+
+FROM runtime AS migrate
+COPY --from=build /out/db /app
+USER node
+CMD ["node", "node_modules/prisma/build/index.js", "migrate", "deploy", "--schema", "prisma/schema.prisma"]
+
+FROM runtime AS web
+COPY --from=web-build /app/apps/web/.next/standalone /app
+COPY --from=web-build /app/apps/web/.next/static /app/apps/web/.next/static
+COPY --from=web-build /app/apps/web/public /app/apps/web/public
+ENV PORT=3000 \
+    HOSTNAME=0.0.0.0
 EXPOSE 3000
-CMD ["pnpm", "run", "start"]
+USER node
+WORKDIR /app/apps/web
+CMD ["node", "server.js"]

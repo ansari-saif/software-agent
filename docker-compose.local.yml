@@ -1,0 +1,8 @@
+# Local-only overrides for E2E (never used by scripts/deploy.sh).
+# Publishes Traefik on port 80 so sandbox preview URLs of the form
+# http://<projectId>.sandbox.local/... resolve in a browser that maps
+# *.sandbox.local to 127.0.0.1 (see e2e/playwright.config.ts).
+services:
+  traefik:
+    ports:
+      - "127.0.0.1:80:80"

@@ -1,0 +1,7 @@
+services:
+  sandbox-image:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: software-agent-sandbox:latest
+    profiles: ["build"]

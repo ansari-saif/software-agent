@@ -2,81 +2,74 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Start Frontend",
+      "label": "Start Postgres",
       "type": "shell",
-      "command": "pnpm",
-      "args": ["dev"],
-      "options": {
-        "cwd": "apps/frontend",
-      },
+      "command": "docker",
+      "args": ["compose", "up", "-d", "--wait", "postgres"],
       "problemMatcher": []
     },
     {
-      "label": "Start Backend",
+      "label": "Migrate DB",
       "type": "shell",
       "command": "pnpm",
-      "args": ["dev"],
-      "options": {
-        "cwd": "apps/backend",
-      },
+      "args": ["--filter", "db", "migrate"],
+      "dependsOn": ["Start Postgres"],
       "problemMatcher": []
     },
     {
-      "label": "Start worker",
+      "label": "Start Web",
       "type": "shell",
       "command": "pnpm",
-      "args": ["dev"],
-      "options": {
-        "cwd": "apps/worker",
-      },
+      "args": ["--filter", "@repo/web", "dev"],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Start API",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["--filter", "api", "dev"],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Worker",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["--filter", "worker", "dev"],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Sandbox Controller",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["--filter", "sandbox-controller", "dev"],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Sandbox Image",
+      "type": "shell",
+      "command": "docker",
+      "args": ["build", "-t", "software-agent-sandbox:dev", "apps/sandbox-image"],
       "problemMatcher": []
     },
     {
       "label": "Start Prisma Studio",
       "type": "shell",
-      "command": "pnpx",
-      "args": ["prisma", "studio"],
-      "options": {
-        "cwd": "packages/db",
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Start Code Server",
-      "type": "shell",
-      "command": "docker",
-      "args": ["compose", "up"],
-      "options": {
-        "cwd": "apps/code-server"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Start Docker app",
-      "type": "shell",
-      "command": "open",
-      "args": ["-a", "Docker"],
-      "options": {},
-      "problemMatcher": []
-    },
-    {
-      "label": "Start Docker Container",
-      "type": "shell",
-      "command": "docker",
-      "args": ["start", "my-docker"],
-      "options": {},
+      "command": "pnpm",
+      "args": ["--filter", "db", "studio"],
+      "isBackground": true,
       "problemMatcher": []
     },
     {
       "label": "Start All Services",
       "dependsOn": [
-        "Start Frontend",
-        "Start Backend",
-        "Start Prisma Studio",
-        "Start Code Server",
-        "Start Docker Container",
-        "Run DB",
-        "Start worker"
+        "Start Web",
+        "Start API",
+        "Start Worker",
+        "Start Sandbox Controller"
       ],
       "dependsOrder": "parallel",
       "problemMatcher": [],

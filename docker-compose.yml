@@ -1,183 +1,404 @@
 name: software-agent
 
+# Production/staging stack. Images are pulled from GHCR by tag:
+#   IMAGE_TAG=<git sha> docker compose pull && docker compose up -d --no-build
+# Local image builds still work via `docker compose build`.
+#
+# The sandbox network is created outside compose (scripts/bootstrap-server.sh) so it
+# has a fixed subnet that the host firewall (DOCKER-USER) can isolate:
+#   docker network create --subnet 172.30.0.0/16 --ip-range 172.30.128.0/17 \
+#     -o com.docker.network.bridge.name=br-sandbox software-agent_sandbox-net
+
+x-node-hardening: &node-hardening
+  user: "node"
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:mode=1777,size=64m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+x-database-url: &database-url ${DATABASE_URL:?DATABASE_URL is required}
+x-internal-token: &internal-token ${INTERNAL_API_TOKEN:?INTERNAL_API_TOKEN is required (>=16 chars)}
+
 services:
   postgres:
-    image: public.ecr.aws/docker/library/postgres:15
-    container_name: software-agent-postgres
+    image: public.ecr.aws/docker/library/postgres:16.8-bookworm
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-software_agent}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-software_agent}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 256m
     mem_limit: 1g
     cpus: "1.0"
-    networks: [software-agent]
+    pids_limit: 256
+    networks: [core-net]
 
-  db-init:
+  db-migrate:
     build:
       context: .
       dockerfile: Dockerfile
       target: migrate
-    container_name: software-agent-db-init
-    env_file: [.env]
+    image: ghcr.io/${GHCR_OWNER:-ansari-saif}/software-agent-migrate:${IMAGE_TAG:-latest}
+    <<: *node-hardening
+    restart: "no"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-software_agent}
+      DATABASE_URL: *database-url
+      CHECKPOINT_DISABLE: "1"
+      PRISMA_HIDE_UPDATE_MESSAGE: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    restart: "no"
-    networks: [software-agent]
+    mem_limit: 512m
+    cpus: "0.5"
+    pids_limit: 128
+    networks: [core-net]
 
-  backend:
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-      target: backend
-    image: software-agent-backend:latest
-    container_name: software-agent-backend
-    restart: unless-stopped
-    env_file: [.env]
+      target: api
+    image: ghcr.io/${GHCR_OWNER:-ansari-saif}/software-agent-api:${IMAGE_TAG:-latest}
+    <<: *node-hardening
     environment:
-      PORT: 8080
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-software_agent}
-      WORKSPACE_ROOT: /data/workspaces
-      HOST_WORKSPACE_ROOT: ${HOST_WORKSPACE_ROOT:-/data/software-agent/workspaces}
-      IDE_DOCKER_NETWORK: software-agent_software-agent
-      IDE_BASE_DOMAIN: ${IDE_BASE_DOMAIN:-ide.ansarisaif.com}
-      MAX_CONCURRENT_IDE: ${MAX_CONCURRENT_IDE:-3}
-      IDE_MEMORY: ${IDE_MEMORY:-4g}
-      IDE_CPUS: ${IDE_CPUS:-1}
-      IDE_IDLE_MINUTES: ${IDE_IDLE_MINUTES:-30}
-      IDE_BACKEND_IMAGE: software-agent-code-server-backend:latest
-      IDE_FRONTEND_IMAGE: software-agent-code-server-frontend:latest
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://agent.ansarisaif.com,http://localhost:3000}
+      NODE_ENV: production
+      PORT: "8080"
+      DATABASE_URL: *database-url
+      INTERNAL_API_TOKEN: *internal-token
+      CLERK_JWT_PUBLIC_KEY: ${CLERK_JWT_PUBLIC_KEY:?CLERK_JWT_PUBLIC_KEY is required}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:?CLERK_AUTHORIZED_PARTIES is required}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
+      CONTROLLER_URL: ${CONTROLLER_URL:-http://sandbox-controller:7070}
+      SANDBOX_BASE_DOMAIN: ${SANDBOX_BASE_DOMAIN:?SANDBOX_BASE_DOMAIN is required}
+      SANDBOX_PROTOCOL: ${SANDBOX_PROTOCOL:-https}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+      DAILY_TOKEN_QUOTA: ${DAILY_TOKEN_QUOTA:-2000000}
+      MAX_CONCURRENT_RUNS: ${MAX_CONCURRENT_RUNS:-2}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "127.0.0.1:8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${HOST_WORKSPACE_ROOT:-/data/software-agent/workspaces}:/data/workspaces
     depends_on:
-      db-init:
+      db-migrate:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
-    mem_limit: 1g
-    cpus: "1.0"
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "node -e \"fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
-        ]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
-    networks: [software-agent]
+      start_period: 20s
+    mem_limit: 768m
+    cpus: "1.0"
+    pids_limit: 256
+    networks: [core-net]
 
   worker:
     build:
       context: .
       dockerfile: Dockerfile
       target: worker
-    image: software-agent-worker:latest
-    container_name: software-agent-worker
-    restart: unless-stopped
-    env_file: [.env]
+    image: ghcr.io/${GHCR_OWNER:-ansari-saif}/software-agent-worker:${IMAGE_TAG:-latest}
+    <<: *node-hardening
     environment:
-      PORT: 9091
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-software_agent}
-      WORKSPACE_ROOT: /data/workspaces
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://agent.ansarisaif.com,http://localhost:3000}
-    ports:
-      - "127.0.0.1:9091:9091"
-    volumes:
-      - ${HOST_WORKSPACE_ROOT:-/data/software-agent/workspaces}:/data/workspaces
+      NODE_ENV: production
+      PORT: "9091"
+      DATABASE_URL: *database-url
+      INTERNAL_API_TOKEN: *internal-token
+      CONTROLLER_URL: ${CONTROLLER_URL:-http://sandbox-controller:7070}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}
+      AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-4-5}
+      AGENT_MAX_STEPS: ${AGENT_MAX_STEPS:-40}
+      AGENT_MAX_STEP_TOKENS: ${AGENT_MAX_STEP_TOKENS:-16384}
+      AGENT_MAX_RUN_OUTPUT_TOKENS: ${AGENT_MAX_RUN_OUTPUT_TOKENS:-120000}
+      MAX_CONCURRENT_RUNS: ${MAX_CONCURRENT_RUNS:-2}
+      DAILY_TOKEN_QUOTA: ${DAILY_TOKEN_QUOTA:-2000000}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    # No published port: /health on 9091 is for the container healthcheck only.
     depends_on:
-      db-init:
+      db-migrate:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
-    mem_limit: 1.5g
-    cpus: "1.5"
+      sandbox-controller:
+        condition: service_healthy
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "node -e \"fetch('http://127.0.0.1:9091/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
-        ]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9091/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    mem_limit: 1g
+    cpus: "1.0"
+    pids_limit: 256
+    networks: [core-net]
+
+  sandbox-controller:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: sandbox-controller
+    image: ghcr.io/${GHCR_OWNER:-ansari-saif}/software-agent-sandbox-controller:${IMAGE_TAG:-latest}
+    <<: *node-hardening
+    environment:
+      NODE_ENV: production
+      PORT: "7070"
+      DATABASE_URL: *database-url
+      INTERNAL_API_TOKEN: *internal-token
+      CLERK_JWT_PUBLIC_KEY: ${CLERK_JWT_PUBLIC_KEY:?CLERK_JWT_PUBLIC_KEY is required}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:?CLERK_AUTHORIZED_PARTIES is required}
+      DOCKER_PROXY_URL: http://docker-socket-proxy:2375
+      SANDBOX_IMAGE: ${SANDBOX_IMAGE:-ghcr.io/${GHCR_OWNER:-ansari-saif}/software-agent-sandbox:${IMAGE_TAG:-latest}}
+      SANDBOX_NETWORK: software-agent_sandbox-net
+      SANDBOX_BASE_DOMAIN: ${SANDBOX_BASE_DOMAIN:?SANDBOX_BASE_DOMAIN is required}
+      SANDBOX_PROTOCOL: ${SANDBOX_PROTOCOL:-https}
+      MAX_CONCURRENT_SANDBOXES: ${MAX_CONCURRENT_SANDBOXES:-3}
+      SANDBOX_MEMORY_GB: ${SANDBOX_MEMORY_GB:-4}
+      SANDBOX_CPUS: ${SANDBOX_CPUS:-1}
+      SANDBOX_PIDS_LIMIT: ${SANDBOX_PIDS_LIMIT:-512}
+      SANDBOX_IDLE_MINUTES: ${SANDBOX_IDLE_MINUTES:-30}
+      SANDBOX_MAX_AGE_MINUTES: ${SANDBOX_MAX_AGE_MINUTES:-240}
+      WORKSPACE_ROOT: /data/workspaces
+      HOST_WORKSPACE_ROOT: ${HOST_WORKSPACE_ROOT:?HOST_WORKSPACE_ROOT is required}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ${HOST_WORKSPACE_ROOT:?HOST_WORKSPACE_ROOT is required}:/data/workspaces
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      docker-socket-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7070/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    labels:
+      # Traefik only reads labels from enabled containers. The router below is bound to a
+      # loopback-only entrypoint inside the Traefik container, so the controller is never
+      # routable from nginx or from sandboxes; the container exists here only to carry the
+      # forwardAuth middleware definition.
+      traefik.enable: "true"
+      traefik.docker.network: software-agent_auth-net
+      traefik.http.routers.sandbox-controller.entrypoints: loopback
+      traefik.http.routers.sandbox-controller.rule: Host(`sandbox-controller.invalid`)
+      traefik.http.routers.sandbox-controller.middlewares: loopback-only
+      traefik.http.middlewares.loopback-only.ipallowlist.sourcerange: 127.0.0.1/32
+      traefik.http.services.sandbox-controller.loadbalancer.server.port: "7070"
+      traefik.http.middlewares.sandbox-auth.forwardauth.address: http://sandbox-controller:7070/auth/forward
+      traefik.http.middlewares.sandbox-auth.forwardauth.trustForwardHeader: "true"
+      traefik.http.middlewares.sandbox-auth.forwardauth.addAuthCookiesToResponse: sbx_session
+    mem_limit: 384m
+    cpus: "0.5"
+    pids_limit: 256
+    # core-net: api/worker -> controller; proxy-net: controller -> docker-socket-proxy;
+    # auth-net: traefik -> controller (forwardAuth). Deliberately NOT on sandbox-net.
+    networks: [core-net, proxy-net, auth-net]
+
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    restart: unless-stopped
+    environment:
+      CONTAINERS: "1"
+      EXEC: "1"
+      POST: "1"
+      ALLOW_START: "1"
+      ALLOW_STOP: "1"
+      ALLOW_RESTARTS: "0"
+      IMAGES: "0"
+      NETWORKS: "0"
+      VOLUMES: "0"
+      SERVICES: "0"
+      TASKS: "0"
+      SWARM: "0"
+      NODES: "0"
+      SECRETS: "0"
+      CONFIGS: "0"
+      PLUGINS: "0"
+      BUILD: "0"
+      COMMIT: "0"
+      SYSTEM: "0"
+      AUTH: "0"
+      DISTRIBUTION: "0"
+      INFO: "0"
+      LOG_LEVEL: warning
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:2375/_ping >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    mem_limit: 64m
+    cpus: "0.25"
+    pids_limit: 64
+    networks: [proxy-net]
+
+  # Read-only Docker API for Traefik's label discovery. Kept separate so Traefik (which
+  # faces sandbox traffic) never shares the controller's create/exec-capable proxy.
+  traefik-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    restart: unless-stopped
+    environment:
+      CONTAINERS: "1"
+      EVENTS: "1"
+      POST: "0"
+      EXEC: "0"
+      IMAGES: "0"
+      NETWORKS: "0"
+      VOLUMES: "0"
+      INFO: "0"
+      LOG_LEVEL: warning
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:2375/_ping >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    mem_limit: 64m
+    cpus: "0.25"
+    pids_limit: 64
+    networks: [traefik-proxy-net]
+
+  traefik:
+    # >= v3.6.1: older releases negotiate Docker API 1.24, which Docker Engine 29+ rejects.
+    image: public.ecr.aws/docker/library/traefik:v3.6.2
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.endpoint=tcp://traefik-socket-proxy:2375
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=software-agent_sandbox-net
+      - --entrypoints.web.address=:80
+      # nginx reaches Traefik through the published port; with the userland proxy the
+      # source address is the sandbox-net gateway.
+      - --entrypoints.web.forwardedHeaders.trustedIPs=172.30.0.1/32,127.0.0.1/32
+      - --entrypoints.loopback.address=127.0.0.1:9999
+      - --entrypoints.ping.address=127.0.0.1:8082
+      - --ping=true
+      - --ping.entrypoint=ping
+      - --api.dashboard=false
+      - --log.level=WARN
+      - --accesslog=true
+      - --global.checknewversion=false
+      - --global.sendanonymoususage=false
+    ports:
+      - "127.0.0.1:8888:80"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    depends_on:
+      traefik-socket-proxy:
+        condition: service_healthy
+      sandbox-controller:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping", "--ping.entrypoint=ping", "--entrypoints.ping.address=127.0.0.1:8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+    cpus: "0.5"
+    pids_limit: 128
+    networks:
+      sandbox-net:
+        # Fixed address (outside the dynamic --ip-range) so the host firewall can allow
+        # Traefik -> sandbox while dropping sandbox -> sandbox / private ranges.
+        ipv4_address: 172.30.0.2
+      auth-net: {}
+      traefik-proxy-net: {}
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://agent-api.ansarisaif.com}
+        NEXT_PUBLIC_SANDBOX_BASE_DOMAIN: ${NEXT_PUBLIC_SANDBOX_BASE_DOMAIN:-sandbox.ansarisaif.com}
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+    image: ghcr.io/${GHCR_OWNER:-ansari-saif}/software-agent-web:${IMAGE_TAG:-latest}
+    <<: *node-hardening
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+      - /app/apps/web/.next/cache:mode=1777,size=128m
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      NEXT_TELEMETRY_DISABLED: "1"
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?CLERK_SECRET_KEY is required}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is required}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://agent-api.ansarisaif.com}
+      NEXT_PUBLIC_SANDBOX_BASE_DOMAIN: ${NEXT_PUBLIC_SANDBOX_BASE_DOMAIN:-sandbox.ansarisaif.com}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    ports:
+      - "127.0.0.1:3010:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
-    networks: [software-agent]
-
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: frontend
-      args:
-        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-https://agent-api.ansarisaif.com}
-        NEXT_PUBLIC_WORKER_URL: ${NEXT_PUBLIC_WORKER_URL:-https://agent-worker.ansarisaif.com}
-        NEXT_PUBLIC_IDE_BASE_DOMAIN: ${NEXT_PUBLIC_IDE_BASE_DOMAIN:-ide.ansarisaif.com}
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
-    image: software-agent-frontend:latest
-    container_name: software-agent-frontend
-    restart: unless-stopped
-    env_file: [.env]
-    environment:
-      PORT: 3000
-      NODE_ENV: production
-    ports:
-      - "127.0.0.1:3010:3000"
-    depends_on:
-      - backend
-      - worker
-    mem_limit: 1g
+    mem_limit: 768m
     cpus: "1.0"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 40s
-    networks: [software-agent]
-
-  traefik:
-    image: public.ecr.aws/docker/library/traefik:v3.3
-    container_name: software-agent-traefik
-    restart: unless-stopped
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --providers.docker.network=software-agent_software-agent
-      - --entrypoints.web.address=:80
-      - --api.insecure=true
-      - --ping=true
-    ports:
-      - "127.0.0.1:8888:80"
-      - "127.0.0.1:8889:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    mem_limit: 256m
-    cpus: "0.5"
-    networks: [software-agent]
+    pids_limit: 256
+    networks: [core-net]
 
 networks:
-  software-agent:
-    name: software-agent_software-agent
+  core-net:
+    name: software-agent_core-net
+  proxy-net:
+    name: software-agent_proxy-net
+    internal: true
+  traefik-proxy-net:
+    name: software-agent_traefik-proxy-net
+    internal: true
+  auth-net:
+    name: software-agent_auth-net
+    internal: true
+  sandbox-net:
+    name: software-agent_sandbox-net
+    external: true
 
 volumes:
   postgres_data:
+    # New name so the pre-cutover volume (software-agent_postgres_data) is left intact
+    # for rollback; see docs/cutover.md.
+    name: software-agent_postgres_data_v2

@@ -1,102 +1,56 @@
-import Image, { type ImageProps } from "next/image";
-import { Button } from "@repo/ui/button";
-import styles from "./page.module.css";
+import { HomeComposer } from "@/components/HomeComposer";
+import { SiteHeader } from "@/components/SiteHeader";
 
-type Props = Omit<ImageProps, "src"> & {
-  srcLight: string;
-  srcDark: string;
-};
-
-const ThemeImage = (props: Props) => {
-  const { srcLight, srcDark, ...rest } = props;
-
+export default function HomePage() {
   return (
-    <>
-      <Image {...rest} src={srcLight} className="imgLight" />
-      <Image {...rest} src={srcDark} className="imgDark" />
-    </>
-  );
-};
+    <div className="relative flex min-h-dvh flex-col bg-atmosphere">
+      <SiteHeader className="border-transparent bg-transparent backdrop-blur-none" />
+      <main
+        id="main"
+        className="flex flex-1 flex-col justify-center px-4 pb-16 pt-8 sm:px-8 md:pb-24 lg:px-12"
+      >
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-12 duration-500 animate-in fade-in slide-in-from-bottom-2">
+          <div className="lg:col-span-7">
+            <h1 className="text-balance text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+              Describe any app. <span className="text-primary">Watch it get built.</span>
+            </h1>
+            <p className="mt-4 max-w-xl text-pretty text-base text-muted-foreground sm:text-lg">
+              One agent writes the code, runs it in a private sandbox, and shows you a live preview
+              while it works.
+            </p>
+            <div className="mt-8 sm:mt-10 max-w-2xl">
+              <HomeComposer />
+            </div>
+          </div>
 
-export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <ThemeImage
-          className={styles.logo}
-          srcLight="turborepo-dark.svg"
-          srcDark="turborepo-light.svg"
-          alt="Turborepo logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>apps/web/app/page.tsx</code>
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new/clone?demo-description=Learn+to+implement+a+monorepo+with+a+two+Next.js+sites+that+has+installed+three+local+packages.&demo-image=%2F%2Fimages.ctfassets.net%2Fe5382hct74si%2F4K8ZISWAzJ8X1504ca0zmC%2F0b21a1c6246add355e55816278ef54bc%2FBasic.png&demo-title=Monorepo+with+Turborepo&demo-url=https%3A%2F%2Fexamples-basic-web.vercel.sh%2F&from=templates&project-name=Monorepo+with+Turborepo&repository-name=monorepo-turborepo&repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fturborepo%2Ftree%2Fmain%2Fexamples%2Fbasic&root-directory=apps%2Fdocs&skippable-integrations=1&teamSlug=vercel&utm_source=create-turbo"
-            target="_blank"
-            rel="noopener noreferrer"
+          <figure
+            aria-label="Live sandbox session preview"
+            className="lg:col-span-5 overflow-hidden rounded-xl border bg-surface shadow-2xl shadow-black/50"
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://turborepo.com/docs?utm_source"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+            <div className="flex items-center justify-between border-b bg-surface-raised px-4 py-2.5 font-mono text-xs text-muted-foreground">
+              <span>sandbox · 0.0.0.0:5173</span>
+              <span className="inline-flex items-center gap-1.5 text-success">
+                <span className="size-1.5 rounded-full bg-success" />
+                RUNNING
+              </span>
+            </div>
+            <div className="space-y-3 p-4 font-mono text-xs">
+              <div className="text-muted-foreground">
+                <span className="text-primary">$</span> pnpm run dev --host 0.0.0.0 --port 5173
+              </div>
+              <div className="space-y-1.5 rounded-md border bg-background/70 p-3 text-[11px] leading-relaxed">
+                <div className="text-foreground">
+                  write_file <span className="text-muted-foreground">src/App.tsx</span>
+                </div>
+                <div className="text-foreground">
+                  run_command <span className="text-muted-foreground">vitest run</span>
+                </div>
+                <div className="text-success">set_preview → http://0.0.0.0:5173/</div>
+              </div>
+            </div>
+          </figure>
         </div>
-        <Button appName="web" className={styles.secondary}>
-          Open alert
-        </Button>
       </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com/templates?search=turborepo&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://turborepo.com?utm_source=create-turbo"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to turborepo.com →
-        </a>
-      </footer>
     </div>
   );
 }

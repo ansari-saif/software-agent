@@ -1,249 +1,129 @@
-# Software Agent Platform - Comprehensive Project Summary
+# Software Agent
 
-## Project Overview
-**Software Agent** is an AI-powered platform designed to automate the Software Development Life Cycle (SDLC) by generating complete applications from natural language prompts. The platform uses multiple specialized AI agents to handle different aspects of application development including database design, backend API generation, and frontend UI creation.
+Software Agent is an AI coding platform. A signed-in user describes what they want to build. The agent (Anthropic Claude, using native tool calls) then plans, writes and runs code inside an isolated per-project sandbox. The user watches the run stream live, opens the project in a browser IDE (code-server), previews the running app, and exports the workspace.
 
-## Architecture & Technology Stack
+Each project has its own workspace directory with git snapshots of every agent run. Every model action goes through a typed, validated tool that executes inside that project's sandbox container. Nothing the model produces ever runs inside the platform services themselves.
 
-### Monorepo Structure (Turborepo)
-- **Build System**: Turborepo with pnpm workspace
-- **Package Manager**: pnpm@9.0.0
-- **Node Version**: >=18
-- **Language**: TypeScript throughout
+## Architecture
 
-### Core Applications
+```mermaid
+flowchart LR
+  browser([Browser])
 
-#### 1. Frontend Application (`apps/frontend/`)
-- **Framework**: Next.js 15.1.8 with React 19
-- **Styling**: Tailwind CSS with shadcn/ui components
-- **Authentication**: Clerk
-- **UI Libraries**: 
-  - Framer Motion for animations
-  - Lucide React for icons
-  - Sonner for notifications
-- **Key Features**:
-  - Multi-agent interface (DB, Backend, Frontend)
-  - Real-time project management
-  - Interactive prompt system
-  - Project history sidebar
-  - Agent-specific theming
+  subgraph host[Server]
+    nginx[nginx<br/>TLS, rate limits]
 
-#### 2. Backend Application (`apps/backend/`)
-- **Framework**: Express.js with TypeScript
-- **AI Integration**: Anthropic Claude API
-- **Database**: PostgreSQL with Prisma ORM
-- **Key Services**:
-  - DBML generation service
-  - OpenAPI specification processor
-  - File writer utility
-  - Docker integration
-- **Dependencies**:
-  - Dockerode for container management
-  - js-yaml for YAML processing
-  - node-fetch for HTTP requests
+    subgraph core[core-net]
+      web[web<br/>Next.js :3000]
+      api[api<br/>Express :8080<br/>/v1 + SSE]
+      worker[worker<br/>pg-boss consumer]
+      pg[(Postgres<br/>+ pg-boss queue)]
+    end
 
-#### 3. Database Package (`packages/db/`)
-- **ORM**: Prisma
-- **Database**: PostgreSQL
-- **Schema**: Comprehensive project management with prompts, schemas, and artifacts
+    controller[sandbox-controller<br/>:7070 internal]
+    sockproxy[docker-socket-proxy<br/>proxy-net, internal]
+    docker[[Docker daemon]]
 
-## Core Functionality
+    subgraph sbx[sandbox-net 172.30.0.0/16]
+      traefik[Traefik :80<br/>forwardAuth]
+      s1[sandbox: project A<br/>code-server + preview]
+      s2[sandbox: project B]
+    end
 
-### 1. Multi-Agent Architecture
-The platform operates with three specialized AI agents:
+    ws[(Workspaces<br/>/data/workspaces)]
+  end
 
-#### Database Agent
-- **Purpose**: Generates database schemas from natural language descriptions
-- **Output**: JSON schema → DBML → Visual diagrams
-- **Integration**: dbdiagram.io API for diagram generation
-- **Features**:
-  - Schema validation
-  - Relationship mapping
-  - Visual diagram rendering
+  anthropic[(Anthropic API)]
 
-#### Backend Agent
-- **Purpose**: Generates FastAPI backend applications
-- **Framework**: FastAPI with SQLModel
-- **Output**: Complete CRUD APIs with proper structure
-- **Features**:
-  - Model generation
-  - API route creation
-  - Service layer implementation
-  - Database integration
+  browser -->|agent.*| nginx --> web
+  browser -->|agent-api.*| nginx --> api
+  browser -->|"{id}.sandbox.*"| nginx --> traefik
+  api --> pg
+  worker --> pg
+  api -->|INTERNAL_API_TOKEN| controller
+  worker -->|tool calls| controller
+  worker --> anthropic
+  traefik -->|/auth/forward| controller
+  traefik --> s1 & s2
+  controller --> sockproxy --> docker
+  controller --> ws
+  s1 & s2 -. bind mount .- ws
+```
 
-#### Frontend Agent
-- **Purpose**: Generates React TypeScript frontend applications
-- **Framework**: React 18 + TypeScript + Vite
-- **UI Library**: shadcn/ui components
-- **Features**:
-  - CRUD interfaces
-  - TanStack Table integration
-  - Form validation
-  - Responsive design
+| Service | Package | Port | Exposure | Role |
+|---|---|---|---|---|
+| `apps/web` | `@repo/web` | 3000 (host 127.0.0.1:3010) | public via nginx | Only browser-facing app. Next.js standalone build. |
+| `apps/api` | `api` | 8080 | public via nginx | Only public API: `/v1/*` REST, SSE at `/v1/runs/:id/events`, `/health`, `/ready`. |
+| `apps/worker` | `worker` | 9091 (`/health` only) | none | Consumes pg-boss jobs and runs the agent loop. |
+| `apps/sandbox-controller` | `sandbox-controller` | 7070 | internal only | Owns sandbox lifecycle, workspace files and exec. It is the only service that talks to Docker, and only through the socket proxy. Also serves Traefik `forwardAuth` at `/auth/forward`. |
+| `apps/sandbox-image` | – | – | via Traefik | Generic code-server image used for every project sandbox. |
 
-### 2. Workflow Process
+Design decisions are recorded in [`docs/adr/`](docs/adr). Security posture is described in [`docs/threat-model.md`](docs/threat-model.md).
 
-1. **Project Creation**: User creates a new project with a description
-2. **Prompt Processing**: Natural language prompt is processed by the appropriate agent
-3. **Schema Generation**: Database agent generates JSON schema and DBML
-4. **API Generation**: Backend agent creates FastAPI application
-5. **UI Generation**: Frontend agent creates React application
-6. **File Management**: Generated files are written to temporary directories
-7. **Execution**: Commands are run to test and validate generated code
+## Repository layout
 
-### 3. Database Schema
+```
+apps/
+  web/                 Next.js frontend (@repo/web)
+  api/                 Public Express API (/v1, SSE)
+  worker/              pg-boss consumer running the agent loop
+  sandbox-controller/  Docker (via socket proxy) + workspace owner
+  sandbox-image/       code-server sandbox Dockerfile
+packages/
+  contracts/           zod schemas + types shared by every service (API, events, controller)
+  auth/                Clerk JWT verification, internal-token middleware, ownership helpers
+  agent-core/          Agent loop, tool definitions, providers (Anthropic + fake)
+  observability/       Logging, request IDs, Sentry
+  db/                  Prisma schema, migrations, client
+  typescript-config/   Shared tsconfig
+  eslint-config/       Shared ESLint config
+deploy/                nginx site config + deployment notes
+scripts/               deploy, rollback, backup, smoke-test, bootstrap-server
+docs/                  ADRs, threat model, runbook, cutover plan
+Dockerfile             Multi-stage build for api, worker, sandbox-controller, web, migrate
+docker-compose.yml     Production stack
+```
 
-#### Core Models
-- **User**: Authentication and user management
-- **Project**: Main project entity with metadata
-- **Prompt**: Stores user and agent prompts
-- **BackendPrompt/FrontendPrompt**: Specialized prompt types
+## Local development
 
-#### Key Fields
-- `schema`: JSON storage for generated database schemas
-- `dbml_id` & `dbml_diagram_id`: External diagram service IDs
-- `routeCode` & `menuCode`: Generated frontend routing and navigation
-- `openApi`: OpenAPI specification storage
+Requirements: Node 20+, pnpm 9 (`corepack enable`), Docker.
 
-## Key Services & Utilities
+```bash
+pnpm install
+cp .env.example .env                      # fill in Clerk + Anthropic keys, a Postgres password,
+                                          # and INTERNAL_API_TOKEN (openssl rand -hex 32)
+                                          # use localhost in DATABASE_URL for host-run services
 
-### 1. DBML Generator Service
-- Converts JSON schemas to DBML format
-- Handles field type mapping
-- Generates proper relationships
-- Adds standard fields (id, timestamps)
+docker compose up -d --wait postgres      # or any local Postgres 16
+pnpm --filter db migrate                  # prisma migrate dev + generate
 
-### 2. OpenAPI Processor
-- Converts schemas to OpenAPI 3.0 specifications
-- Generates complete API documentation
-- Creates CRUD endpoint definitions
-- Handles request/response schemas
+# Sandboxes need the shared network and a sandbox image:
+docker network create --subnet 172.30.0.0/16 --ip-range 172.30.128.0/17 software-agent_sandbox-net
+docker build -t software-agent-sandbox:dev apps/sandbox-image   # then SANDBOX_IMAGE=software-agent-sandbox:dev
 
-### 3. File Writer Utility
-- Manages file creation in temporary directories
-- Supports both backend and frontend file types
-- Handles directory structure creation
-- Executes project commands (npm install, etc.)
+pnpm dev                                  # turbo: web, api, worker, sandbox-controller
+```
 
-### 4. Prompt Management
-- Specialized prompts for each agent type
-- Structured input/output formats
-- JSON-only responses for consistency
-- Error handling and validation
+To run the whole containerised stack locally instead, run `docker compose build && docker compose up -d`. Set `HOST_WORKSPACE_ROOT` to a local directory first.
 
-## Development Status & Current Issues
+## Commands
 
-### Completed Features
-- ✅ Multi-agent architecture
-- ✅ Database schema generation
-- ✅ DBML diagram integration
-- ✅ Basic file generation
-- ✅ Project management system
-- ✅ Authentication integration
+| Command | What it does |
+|---|---|
+| `pnpm install` | Install all workspace dependencies |
+| `pnpm --filter db migrate` | Create/apply a dev migration and regenerate the Prisma client |
+| `pnpm --filter db migrate:deploy` | Apply committed migrations (what `db-migrate` runs in production) |
+| `pnpm dev` | Run every app in watch mode |
+| `pnpm test` | Unit and regression tests (vitest) across the monorepo |
+| `pnpm check-types` / `pnpm lint` | Type check and lint |
+| `pnpm build` | Build every package and app (`tsc` to `dist/`, Next.js for web) |
 
-### In Progress/Issues (from todo.md)
-- 🔄 Stream message removal
-- 🔄 DB diagram method research
-- 🔄 Schema generation improvements
-- 🔄 Backend API generation fixes
-- 🔄 Frontend code generation issues
-- 🔄 Docker setup for both frontend/backend
-- 🔄 VSCode integration
-- 🔄 OpenAPI processing integration
-- 🔄 Linting error fixes
-- 🔄 E2E testing improvements
+## Deploy and operations
 
-### Known Issues
-1. **Backend Generation**: Import errors and module handling
-2. **Frontend Generation**: Component existence and delete functionality
-3. **OpenAPI Processing**: Integration with frontend agent
-4. **Docker Setup**: Incomplete containerization
-5. **Command Execution**: Terminal integration challenges
+- **Deploy:** pushing to `main` runs CI. When CI passes, [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) builds and pushes images to GHCR tagged with the commit SHA, then runs [`scripts/deploy.sh <sha>`](scripts/deploy.sh) on the server as the non-root deploy user. That script backs up the database, runs migrations, starts the stack and runs the smoke tests.
+- **Rollback:** run [`scripts/rollback.sh`](scripts/rollback.sh), which returns to the previously deployed tag.
+- **Backups:** [`scripts/backup.sh`](scripts/backup.sh) runs nightly (Postgres dump plus a workspace tarball, 14-day retention, optional off-site copy with rclone).
+- **First server setup:** run [`scripts/bootstrap-server.sh`](scripts/bootstrap-server.sh). See [`deploy/README.md`](deploy/README.md).
+- **Operations:** see the [runbook](docs/runbook.md) and the [cutover from the old stack](docs/cutover.md).
 
-## Technical Challenges
-
-### 1. AI Response Parsing
-- Ensuring consistent JSON output from AI agents
-- Handling malformed responses
-- Error recovery mechanisms
-
-### 2. File System Management
-- Temporary file organization
-- Project isolation
-- Cleanup procedures
-
-### 3. Code Generation Quality
-- Linting and formatting
-- Type safety
-- Best practices enforcement
-
-### 4. Integration Complexity
-- Multiple service coordination
-- State management across agents
-- Real-time updates
-
-## Future Roadmap
-
-### Short Term
-1. Fix current generation issues
-2. Complete Docker setup
-3. Implement VSCode integration
-4. Improve error handling
-
-### Medium Term
-1. Add more AI models support
-2. Implement code review features
-3. Add testing generation
-4. Improve UI/UX
-
-### Long Term
-1. Multi-language support
-2. Advanced code analysis
-3. Performance optimization
-4. Enterprise features
-
-## Security & Best Practices
-
-### Current Implementation
-- JWT authentication
-- User isolation
-- Input validation
-- Environment variable management
-
-### Areas for Improvement
-- Rate limiting
-- Input sanitization
-- Audit logging
-- Security scanning
-
-## Performance Considerations
-
-### Current Optimizations
-- Turborepo caching
-- Prisma connection pooling
-- Efficient file operations
-
-### Potential Improvements
-- Response streaming
-- Background processing
-- Caching strategies
-- Resource optimization
-
-## Conclusion
-
-The Software Agent platform represents an ambitious attempt to automate the entire SDLC using AI agents. While the core architecture is solid and the multi-agent approach is innovative, there are significant challenges in ensuring code quality, handling edge cases, and maintaining consistency across different generation phases.
-
-The project shows promise as a development automation tool but requires substantial work to address current issues and improve reliability before it can be considered production-ready.
-
-**Key Strengths:**
-- Well-architected monorepo structure
-- Innovative multi-agent approach
-- Comprehensive database design
-- Modern tech stack
-
-**Key Challenges:**
-- AI response reliability
-- Code generation quality
-- Integration complexity
-- Error handling robustness
-
+Contributor and agent rules are in [`AGENTS.md`](AGENTS.md).

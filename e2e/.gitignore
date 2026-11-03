@@ -1,0 +1,4 @@
+node_modules
+playwright/.clerk*
+playwright-report
+test-results
