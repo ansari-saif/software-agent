@@ -96,6 +96,45 @@ export const ApiErrorEnvelopeSchema = z.object({
 });
 export type ApiErrorEnvelope = z.infer<typeof ApiErrorEnvelopeSchema>;
 
+export const PortalRoleSchema = z.enum(["superadmin", "member", "pending", "none"]);
+export type PortalRole = z.infer<typeof PortalRoleSchema>;
+
+export const AccessEmailSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(254)
+  .email()
+  .transform((email) => email.toLowerCase());
+
+export const AccessEmailRequestSchema = z.object({
+  email: AccessEmailSchema,
+});
+export type AccessEmailRequest = z.infer<typeof AccessEmailRequestSchema>;
+
+export const MeResponseSchema = z.object({
+  email: AccessEmailSchema,
+  role: PortalRoleSchema,
+});
+export type MeResponse = z.infer<typeof MeResponseSchema>;
+
+export const AccessOkResponseSchema = z.object({
+  ok: z.literal(true),
+});
+export type AccessOkResponse = z.infer<typeof AccessOkResponseSchema>;
+
+export const AccessPersonSchema = z.object({
+  email: AccessEmailSchema,
+  createdAt: z.string().datetime(),
+});
+export type AccessPerson = z.infer<typeof AccessPersonSchema>;
+
+export const AccessListResponseSchema = z.object({
+  requests: z.array(AccessPersonSchema),
+  enabled: z.array(AccessPersonSchema),
+});
+export type AccessListResponse = z.infer<typeof AccessListResponseSchema>;
+
 export const CreateProjectRequestSchema = z
   .object({
     prompt: z.string().trim().max(50_000).optional().default(""),
@@ -412,6 +451,18 @@ export function buildPlatformOpenApiSpec() {
       },
       "/runs/{runId}/cancel": {
         post: { summary: "Cancel an active or queued run" },
+      },
+      "/me": {
+        get: { summary: "Current caller email and portal role" },
+      },
+      "/access/request": {
+        post: { summary: "Request access for the signed-in email" },
+        delete: { summary: "Dismiss a pending access request (superadmin)" },
+      },
+      "/access": {
+        get: { summary: "List pending requests and enabled people (superadmin)" },
+        post: { summary: "Enable an email (superadmin)" },
+        delete: { summary: "Remove an enabled person (superadmin)" },
       },
     },
   };

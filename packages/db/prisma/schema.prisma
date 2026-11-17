@@ -138,3 +138,17 @@ model RateLimit {
   points Int     @default(0)
   expire BigInt?
 }
+
+enum AccessStatus {
+  PENDING
+  ENABLED
+}
+
+/// Portal allowlist. The superadmin email is never stored as a row.
+model PortalAccess {
+  email     String       @id
+  status    AccessStatus
+  createdAt DateTime     @default(now())
+
+  @@index([status, createdAt])
+}

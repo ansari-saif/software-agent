@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  AccessEmailSchema,
+  AccessListResponseSchema,
   CreateProjectRequestSchema,
   ImageBlockSchema,
   MAX_IMAGE_BASE64_LENGTH,
+  MeResponseSchema,
   SendMessageRequestSchema,
   UpdateProjectRequestSchema,
   deriveProjectName,
@@ -53,6 +56,21 @@ describe("@repo/contracts schemas", () => {
     expect(
       SendMessageRequestSchema.safeParse({ prompt: "Add dark mode" }).success
     ).toBe(true);
+  });
+
+  it("normalizes portal access emails and roles", () => {
+    expect(AccessEmailSchema.parse("  Ada@Example.com ")).toBe("ada@example.com");
+    expect(AccessEmailSchema.safeParse("not-an-email").success).toBe(false);
+    expect(MeResponseSchema.parse({ email: "A@B.co", role: "pending" })).toEqual({
+      email: "a@b.co",
+      role: "pending",
+    });
+    expect(
+      AccessListResponseSchema.parse({
+        requests: [{ email: "wait@example.com", createdAt: "2026-11-17T00:00:00.000Z" }],
+        enabled: [],
+      }).requests
+    ).toHaveLength(1);
   });
 
   it("derives readable project names", () => {

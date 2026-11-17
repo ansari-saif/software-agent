@@ -39,6 +39,8 @@ export interface ComposerProps {
   variant?: "hero" | "compact";
   autoFocus?: boolean;
   visibleLabel?: boolean;
+  /** Lets the primary action run before there is a prompt. Used for Google sign-in. */
+  allowEmptySubmit?: boolean;
 }
 
 export function Composer({
@@ -54,6 +56,7 @@ export function Composer({
   variant = "compact",
   autoFocus = false,
   visibleLabel = false,
+  allowEmptySubmit = false,
 }: ComposerProps) {
   const id = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -93,7 +96,7 @@ export function Composer({
   );
 
   const trimmed = prompt.trim();
-  const canSend = !busy && !sendDisabled && (trimmed.length > 0 || images.length > 0);
+  const canSend = !busy && !sendDisabled && (allowEmptySubmit || trimmed.length > 0 || images.length > 0);
 
   async function submit() {
     if (!canSend) return;

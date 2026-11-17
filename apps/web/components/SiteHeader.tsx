@@ -1,9 +1,13 @@
 "use client";
 
-import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { Logo } from "@/components/Logo";
 import { ProjectsDrawer } from "@/components/ProjectsDrawer";
 import { Button } from "@/components/ui/button";
+import { useMe } from "@/hooks/useMe";
 import { cn } from "@/lib/utils";
 
 export function SiteHeader({
@@ -13,6 +17,11 @@ export function SiteHeader({
   children?: React.ReactNode;
   className?: string;
 }) {
+  const pathname = usePathname();
+  const me = useMe();
+  const role = me.data?.role;
+  const canBuild = role === "member" || role === "superadmin";
+
   return (
     <header
       className={cn(
@@ -22,20 +31,23 @@ export function SiteHeader({
     >
       <Logo />
       <SignedIn>
-        <ProjectsDrawer />
+        {canBuild ? <ProjectsDrawer /> : null}
+        {role === "superadmin" ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className={pathname === "/access" ? "bg-accent" : undefined}
+          >
+            <Link href="/access" aria-current={pathname === "/access" ? "page" : undefined}>
+              Access
+            </Link>
+          </Button>
+        ) : null}
       </SignedIn>
       <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
       <SignedOut>
-        <div className="flex items-center gap-2">
-          <SignInButton mode="modal">
-            <Button variant="ghost" size="sm">
-              Sign in
-            </Button>
-          </SignInButton>
-          <SignUpButton mode="modal">
-            <Button size="sm">Sign up</Button>
-          </SignUpButton>
-        </div>
+        <GoogleSignInButton />
       </SignedOut>
       <SignedIn>
         <UserButton />

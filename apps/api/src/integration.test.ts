@@ -3,7 +3,7 @@ import { prismaClient } from "db";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "./app";
-import { createTestDeps, createTestKeys } from "./testUtils";
+import { createTestDeps, createTestKeys, TEST_AZP } from "./testUtils";
 
 // Explicit opt-in: Prisma auto-loads .env files, so DATABASE_URL alone may point at a real database.
 const runIntegration = process.env.RUN_DB_TESTS === "1";
@@ -13,15 +13,25 @@ describe.skipIf(!runIntegration)("API against Postgres", () => {
   const suffix = crypto.randomUUID().slice(0, 8);
   const alice = `user_alice_${suffix}`;
   const mallory = `user_mallory_${suffix}`;
+  const stranger = `user_stranger_${suffix}`;
+  const aliceEmail = `alice.${suffix}@example.com`;
+  const malloryEmail = `mallory.${suffix}@example.com`;
+  const strangerEmail = `stranger.${suffix}@example.com`;
   const { deps, enqueued } = createTestDeps(keys.publicKey);
   const app = createApp(deps);
-  const asAlice = `Bearer ${keys.sign(alice)}`;
-  const asMallory = `Bearer ${keys.sign(mallory)}`;
+  const asAlice = `Bearer ${keys.sign(alice, TEST_AZP, aliceEmail)}`;
+  const asMallory = `Bearer ${keys.sign(mallory, TEST_AZP, malloryEmail)}`;
 
   let projectId = "";
   let runId = "";
 
   beforeAll(async () => {
+    await prismaClient.portalAccess.createMany({
+      data: [
+        { email: aliceEmail, status: "ENABLED" },
+        { email: malloryEmail, status: "ENABLED" },
+      ],
+    });
     const res = await request(app)
       .post("/v1/projects")
       .set("Authorization", asAlice)
@@ -33,7 +43,10 @@ describe.skipIf(!runIntegration)("API against Postgres", () => {
   });
 
   afterAll(async () => {
-    await prismaClient.user.deleteMany({ where: { id: { in: [alice, mallory] } } });
+    await prismaClient.portalAccess.deleteMany({
+      where: { email: { in: [aliceEmail, malloryEmail, strangerEmail] } },
+    });
+    await prismaClient.user.deleteMany({ where: { id: { in: [alice, mallory, stranger] } } });
     await prismaClient.$disconnect();
   });
 
@@ -80,6 +93,17 @@ describe.skipIf(!runIntegration)("API against Postgres", () => {
     expect(res.status).toBe(404);
   });
 
+  it("refuses a stranger with a valid JWT and no access row", async () => {
+    const res = await request(app)
+      .post("/v1/projects")
+      .set("Authorization", `Bearer ${keys.sign(stranger, TEST_AZP, strangerEmail)}`)
+      .send({ prompt: "Build a secret app" });
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
+    expect(await prismaClient.project.count({ where: { userId: stranger } })).toBe(0);
+    expect(await prismaClient.user.count({ where: { id: stranger } })).toBe(0);
+  });
+
   it("does not list another user's projects", async () => {
     const res = await request(app).get("/v1/projects").set("Authorization", asMallory);
     expect(res.status).toBe(200);
@@ -97,7 +121,9 @@ describe.skipIf(!runIntegration)("API against Postgres", () => {
     expect(cancel.status).toBe(200);
     expect(cancel.body.status).toBe("CANCELLED");
 
-    const full = await request(app).get(`/v1/runs/${runId}/events?token=${keys.sign(alice)}`);
+    const full = await request(app).get(
+      `/v1/runs/${runId}/events?token=${keys.sign(alice, TEST_AZP, aliceEmail)}`
+    );
     expect(full.status).toBe(200);
     expect(full.text).toContain("event: status");
     expect(full.text).toContain("event: done");

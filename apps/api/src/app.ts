@@ -2,12 +2,15 @@ import crypto from "crypto";
 import { Readable } from "stream";
 import { createProjectOwnershipGuard, createUserAuthMiddleware } from "@repo/auth";
 import {
+  AccessEmailRequestSchema,
   buildPlatformOpenApiSpec,
   CreateProjectRequestSchema,
   deriveProjectName,
   PaginationQuerySchema,
   SendMessageRequestSchema,
   UpdateProjectRequestSchema,
+  type AccessListResponse,
+  type AccessPerson,
   type ContentBlock,
   type CreateProjectWithRunResponse,
   type PaginatedMessagesResponse,
@@ -20,6 +23,15 @@ import { Prisma, prismaClient, type Project } from "db";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { Logger } from "pino";
 import { z } from "zod";
+import {
+  AccessStoreError,
+  createPortalGate,
+  createPrismaAccessStore,
+  lookupClerkPrimaryEmail,
+  portalFrom,
+  type AccessRecord,
+  type AccessStore,
+} from "./access";
 import type { ApiConfig } from "./config";
 import type { SandboxController } from "./controller";
 import { ApiError, errorHandler, notFound } from "./errors";
@@ -37,12 +49,19 @@ export interface ApiDeps {
     | "rateLimitPerMinute"
     | "dailyTokenQuota"
     | "dailyRunQuota"
+    | "clerkSecretKey"
   >;
   logger: Logger;
   controller: SandboxController;
   runEvents: RunEventHub;
   enqueueRun: (runId: string) => Promise<void>;
   consumeRateLimit: RateLimitConsumer;
+  /** Defaults to Prisma. Tests inject a memory store so auth checks stay DB-free. */
+  access?: AccessStore;
+  /** Defaults to the Clerk Backend API. Tests inject a stub. Never log its payload. */
+  lookupClerkEmail?: (userId: string) => Promise<string | null>;
+  /** Defaults to a Prisma user upsert. `knownUsers` may skip repeats; it must not skip the access check. */
+  ensureUser?: (userId: string, email: string) => Promise<void>;
 }
 
 /** Routes that intentionally skip user auth. Everything else must return 401 without a token. */
@@ -152,17 +171,27 @@ export function createApp(deps: ApiDeps): express.Express {
     publicKey: config.clerkPublicKey,
     authorizedParties: config.clerkAuthorizedParties,
     issuer: config.clerkIssuer,
-    onAuthenticated: async (claims: { userId: string; email?: string }) => {
-      if (knownUsers.has(claims.userId)) return;
+  };
+  const ensureUser =
+    deps.ensureUser ??
+    (async (id: string, email: string) => {
+      // Repeat upserts can be skipped. The portal role is resolved on every request.
+      if (knownUsers.has(id)) return;
       await prismaClient.user.upsert({
-        where: { id: claims.userId },
-        update: claims.email ? { email: claims.email } : {},
-        create: { id: claims.userId, email: claims.email ?? null },
+        where: { id },
+        update: email ? { email } : {},
+        create: { id, email: email || null },
       });
       if (knownUsers.size > 10_000) knownUsers.clear();
-      knownUsers.add(claims.userId);
-    },
-  };
+      knownUsers.add(id);
+    });
+  const access = deps.access ?? createPrismaAccessStore();
+  const { identify, requireProduct, requireSuperadmin, touchAllowed } = createPortalGate({
+    access,
+    ensureUser,
+    lookupClerkEmail:
+      deps.lookupClerkEmail ?? ((userId) => lookupClerkPrimaryEmail(userId, config.clerkSecretKey ?? "")),
+  });
   const requireUser = createUserAuthMiddleware(authOptions);
   // EventSource cannot send headers, so the SSE route alone accepts ?token=.
   const requireUserForStream = createUserAuthMiddleware({ ...authOptions, allowQueryToken: true });
@@ -193,12 +222,76 @@ export function createApp(deps: ApiDeps): express.Express {
 
   const v1 = express.Router();
   const authed = [ipLimiter, requireUser, userLimiter];
+  const product = [...authed, identify, requireProduct];
 
-  v1.get("/openapi.json", ...authed, (_req, res) => {
+  const accessPerson = (row: AccessRecord): AccessPerson => ({
+    email: row.email,
+    createdAt: row.createdAt.toISOString(),
+  });
+
+  function accessEmail(body: unknown): string {
+    const parsed = AccessEmailRequestSchema.safeParse(body);
+    if (!parsed.success) throw new ApiError("VALIDATION_ERROR", "invalid email");
+    return parsed.data.email;
+  }
+
+  async function mutateAccess(res: Response, work: () => Promise<void>): Promise<void> {
+    try {
+      await work();
+    } catch (err) {
+      if (err instanceof AccessStoreError) throw new ApiError("VALIDATION_ERROR", err.message);
+      throw err;
+    }
+    res.json({ ok: true });
+  }
+
+  v1.get("/me", ...authed, identify, async (_req, res) => {
+    await touchAllowed(res);
+    const portal = portalFrom(res);
+    res.json({ email: portal.email, role: portal.role });
+  });
+
+  v1.post("/access/request", ...authed, identify, async (_req, res) => {
+    const portal = portalFrom(res);
+    try {
+      await access.request(portal.email);
+    } catch (err) {
+      if (err instanceof AccessStoreError) throw new ApiError("VALIDATION_ERROR", err.message);
+      throw err;
+    }
+    await touchAllowed(res);
+    res.json({ ok: true });
+  });
+
+  v1.get("/access", ...authed, identify, requireSuperadmin, async (_req, res) => {
+    const list = await access.list();
+    const body: AccessListResponse = {
+      requests: list.requests.map(accessPerson),
+      enabled: list.enabled.map(accessPerson),
+    };
+    res.json(body);
+  });
+
+  v1.post("/access", ...authed, identify, requireSuperadmin, async (req, res) => {
+    const email = accessEmail(req.body);
+    await mutateAccess(res, () => access.enable(email));
+  });
+
+  v1.delete("/access/request", ...authed, identify, requireSuperadmin, async (req, res) => {
+    const email = accessEmail(req.body);
+    await mutateAccess(res, () => access.dismissPending(email));
+  });
+
+  v1.delete("/access", ...authed, identify, requireSuperadmin, async (req, res) => {
+    const email = accessEmail(req.body);
+    await mutateAccess(res, () => access.removeEnabled(email));
+  });
+
+  v1.get("/openapi.json", ...product, (_req, res) => {
     res.json(buildPlatformOpenApiSpec());
   });
 
-  v1.get("/projects", ...authed, async (req, res) => {
+  v1.get("/projects", ...product, async (req, res) => {
     const { cursor, limit } = PaginationQuerySchema.parse(req.query);
     const rows = await prismaClient.project.findMany({
       where: { userId: userId(req) },
@@ -214,7 +307,7 @@ export function createApp(deps: ApiDeps): express.Express {
     res.json(body);
   });
 
-  v1.post("/projects", ...authed, runLimiter, async (req, res) => {
+  v1.post("/projects", ...product, runLimiter, async (req, res) => {
     const uid = userId(req);
     const input = CreateProjectRequestSchema.parse(req.body);
     const key = idempotencyKey(req);
@@ -270,11 +363,11 @@ export function createApp(deps: ApiDeps): express.Express {
     res.status(201).json(body);
   });
 
-  v1.get("/projects/:projectId", ...authed, requireProjectOwner, (req, res) => {
+  v1.get("/projects/:projectId", ...product, requireProjectOwner, (req, res) => {
     res.json(toProjectResponse(project(req)));
   });
 
-  v1.patch("/projects/:projectId", ...authed, requireProjectOwner, async (req, res) => {
+  v1.patch("/projects/:projectId", ...product, requireProjectOwner, async (req, res) => {
     const input = UpdateProjectRequestSchema.parse(req.body);
     const updated = await prismaClient.project.update({
       where: { id: project(req).id },
@@ -283,7 +376,7 @@ export function createApp(deps: ApiDeps): express.Express {
     res.json(toProjectResponse(updated));
   });
 
-  v1.delete("/projects/:projectId", ...authed, requireProjectOwner, async (req, res) => {
+  v1.delete("/projects/:projectId", ...product, requireProjectOwner, async (req, res) => {
     const p = project(req);
     await prismaClient.run.updateMany({
       where: { projectId: p.id, status: { in: ["QUEUED", "RUNNING"] } },
@@ -298,7 +391,7 @@ export function createApp(deps: ApiDeps): express.Express {
     res.status(204).end();
   });
 
-  v1.get("/projects/:projectId/messages", ...authed, requireProjectOwner, async (req, res) => {
+  v1.get("/projects/:projectId/messages", ...product, requireProjectOwner, async (req, res) => {
     const p = project(req);
     const { cursor, limit } = PaginationQuerySchema.parse(req.query);
     const rows = await prismaClient.message.findMany({
@@ -320,7 +413,7 @@ export function createApp(deps: ApiDeps): express.Express {
     res.json(body);
   });
 
-  v1.post("/projects/:projectId/messages", ...authed, runLimiter, requireProjectOwner, async (req, res) => {
+  v1.post("/projects/:projectId/messages", ...product, runLimiter, requireProjectOwner, async (req, res) => {
     const p = project(req);
     const input = SendMessageRequestSchema.parse(req.body);
     const key = idempotencyKey(req);
@@ -375,7 +468,7 @@ export function createApp(deps: ApiDeps): express.Express {
     res.status(201).json(body);
   });
 
-  v1.post("/projects/:projectId/sandbox", ...authed, requireProjectOwner, async (req, res) => {
+  v1.post("/projects/:projectId/sandbox", ...product, requireProjectOwner, async (req, res) => {
     const p = project(req);
     const session = await deps.controller.ensure({
       projectId: p.id,
@@ -386,13 +479,13 @@ export function createApp(deps: ApiDeps): express.Express {
     res.json(session);
   });
 
-  v1.delete("/projects/:projectId/sandbox", ...authed, requireProjectOwner, async (req, res) => {
+  v1.delete("/projects/:projectId/sandbox", ...product, requireProjectOwner, async (req, res) => {
     const p = project(req);
     await deps.controller.stop({ projectId: p.id, userId: p.userId });
     res.status(204).end();
   });
 
-  v1.get("/projects/:projectId/files", ...authed, requireProjectOwner, async (req, res) => {
+  v1.get("/projects/:projectId/files", ...product, requireProjectOwner, async (req, res) => {
     const p = project(req);
     const query = FilesQuerySchema.parse(req.query);
     const ref = { projectId: p.id, userId: p.userId };
@@ -403,7 +496,7 @@ export function createApp(deps: ApiDeps): express.Express {
     res.json(await deps.controller.listFiles({ ...ref, path: query.path }));
   });
 
-  v1.get("/projects/:projectId/export", ...authed, requireProjectOwner, async (req, res) => {
+  v1.get("/projects/:projectId/export", ...product, requireProjectOwner, async (req, res) => {
     const p = project(req);
     const body = await deps.controller.exportArchive({ projectId: p.id, userId: p.userId });
     const filename = `${p.name.replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 60) || "project"}.tar.gz`;
@@ -412,7 +505,7 @@ export function createApp(deps: ApiDeps): express.Express {
     Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0]).pipe(res);
   });
 
-  v1.post("/runs/:runId/cancel", ...authed, async (req, res) => {
+  v1.post("/runs/:runId/cancel", ...product, async (req, res) => {
     const runId = runIdParam(req);
     const run = await prismaClient.run.findFirst({ where: { id: runId, project: { userId: userId(req) } } });
     if (!run) throw notFound("Run");
@@ -438,7 +531,7 @@ export function createApp(deps: ApiDeps): express.Express {
     res.json(toRunResponse(updated));
   });
 
-  v1.get("/runs/:runId/events", ipLimiter, requireUserForStream, async (req, res) => {
+  v1.get("/runs/:runId/events", ipLimiter, requireUserForStream, identify, requireProduct, async (req, res) => {
     const runId = runIdParam(req);
     const run = await prismaClient.run.findFirst({ where: { id: runId, project: { userId: userId(req) } } });
     if (!run) throw notFound("Run");

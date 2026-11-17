@@ -14,8 +14,12 @@ export function createTestKeys() {
   });
   return {
     publicKey,
-    sign: (sub: string, azp = TEST_AZP) =>
-      jwt.sign({ sub, azp }, privateKey, { algorithm: "RS256", expiresIn: "5m" }),
+    sign: (sub: string, azp = TEST_AZP, email?: string) =>
+      jwt.sign(
+        { sub, azp, ...(email ? { email } : {}) },
+        privateKey,
+        { algorithm: "RS256", expiresIn: "5m" }
+      ),
   };
 }
 

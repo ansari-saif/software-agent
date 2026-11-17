@@ -136,16 +136,51 @@ jobs:
           GHCR_OWNER: ${{ github.repository_owner }}
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLERK_SECRET_KEY_B64: ${{ secrets.CLERK_SECRET_KEY_B64 }}
+          CLERK_JWT_PUBLIC_KEY_B64: ${{ secrets.CLERK_JWT_PUBLIC_KEY_B64 }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY_B64: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY_B64 }}
+          CLERK_ISSUER_B64: ${{ secrets.CLERK_ISSUER_B64 }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
           command_timeout: 25m
-          envs: DEPLOY_SHA,DEPLOY_PATH,SMOKE_SKIP_PUBLIC,GHCR_OWNER,GHCR_USER,GHCR_TOKEN
+          envs: DEPLOY_SHA,DEPLOY_PATH,SMOKE_SKIP_PUBLIC,GHCR_OWNER,GHCR_USER,GHCR_TOKEN,CLERK_SECRET_KEY_B64,CLERK_JWT_PUBLIC_KEY_B64,NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY_B64,CLERK_ISSUER_B64
           script: |
             set -euo pipefail
             cd "$DEPLOY_PATH"
+            update_env_b64() {
+              key="$1"
+              b64="$2"
+              if [ -z "$b64" ]; then
+                echo "missing $key" >&2
+                exit 1
+              fi
+              val="$(printf '%s' "$b64" | base64 -d)"
+              tmp="$(mktemp)"
+              found=0
+              while IFS= read -r line || [ -n "$line" ]; do
+                case "$line" in
+                  "$key"=*)
+                    printf '%s=%s\n' "$key" "$val"
+                    found=1
+                    ;;
+                  *)
+                    printf '%s\n' "$line"
+                    ;;
+                esac
+              done < .env > "$tmp"
+              if [ "$found" -eq 0 ]; then
+                printf '%s=%s\n' "$key" "$val" >> "$tmp"
+              fi
+              mv "$tmp" .env
+              chmod 600 .env
+            }
+            update_env_b64 CLERK_SECRET_KEY "$CLERK_SECRET_KEY_B64"
+            update_env_b64 CLERK_JWT_PUBLIC_KEY "$CLERK_JWT_PUBLIC_KEY_B64"
+            update_env_b64 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY_B64"
+            update_env_b64 CLERK_ISSUER "$CLERK_ISSUER_B64"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             export GHCR_OWNER="$(echo "$GHCR_OWNER" | tr '[:upper:]' '[:lower:]')"
             export SMOKE_SKIP_PUBLIC

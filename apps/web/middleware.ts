@@ -2,7 +2,9 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 
-const isProtectedRoute = createRouteMatcher(["/project(.*)", "/projects(.*)"]);
+/** Clerk finishes Google OAuth here. It must stay public. */
+const isPublicRoute = createRouteMatcher(["/sso-callback(.*)"]);
+const isProtectedRoute = createRouteMatcher(["/project(.*)", "/projects(.*)", "/access(.*)"]);
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -52,7 +54,7 @@ function buildCsp(): string {
 const CSP = buildCsp();
 
 export default clerkMiddleware(async (auth, request) => {
-  if (isProtectedRoute(request)) {
+  if (!isPublicRoute(request) && isProtectedRoute(request)) {
     await auth.protect();
   }
 

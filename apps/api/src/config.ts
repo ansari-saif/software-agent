@@ -10,6 +10,8 @@ export interface ApiConfig {
   rateLimitPerMinute: number;
   dailyTokenQuota: number;
   dailyRunQuota: number;
+  /** Used only to resolve a Clerk user's primary email. Optional when the JWT already carries email. */
+  clerkSecretKey?: string;
 }
 
 function list(value: string | undefined): string[] {
@@ -42,5 +44,6 @@ export function loadApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     rateLimitPerMinute: Number(env.RATE_LIMIT_PER_MINUTE || 120),
     dailyTokenQuota: Number(env.DAILY_TOKEN_QUOTA || 2_000_000),
     dailyRunQuota: Number(env.DAILY_RUN_QUOTA || 200),
+    clerkSecretKey: env.CLERK_SECRET_KEY || undefined,
   };
 }

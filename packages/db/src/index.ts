@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma, Role, RunStatus, SandboxStatus } from "@prisma/client";
+import { PrismaClient, Prisma, Role, RunStatus, SandboxStatus, AccessStatus } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
   prismaClient?: PrismaClient;
@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prismaClient = prismaClient;
 }
 
-export { PrismaClient, Prisma, Role, RunStatus, SandboxStatus };
+export { PrismaClient, Prisma, Role, RunStatus, SandboxStatus, AccessStatus };
 export type {
   User,
   Project,
@@ -24,4 +24,5 @@ export type {
   Sandbox,
   UsageLedger,
   RateLimit,
+  PortalAccess,
 } from "@prisma/client";
