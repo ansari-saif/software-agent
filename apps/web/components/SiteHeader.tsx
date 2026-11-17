@@ -1,6 +1,6 @@
 "use client";
 
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
@@ -18,9 +18,11 @@ export function SiteHeader({
   className?: string;
 }) {
   const pathname = usePathname();
+  const { isLoaded, isSignedIn } = useAuth();
   const me = useMe();
   const role = me.data?.role;
   const canBuild = role === "member" || role === "superadmin";
+  const signedIn = isLoaded && isSignedIn;
 
   return (
     <header
@@ -30,28 +32,26 @@ export function SiteHeader({
       )}
     >
       <Logo />
-      <SignedIn>
-        {canBuild ? <ProjectsDrawer /> : null}
-        {role === "superadmin" ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className={pathname === "/access" ? "bg-accent" : undefined}
-          >
-            <Link href="/access" aria-current={pathname === "/access" ? "page" : undefined}>
-              Access
-            </Link>
-          </Button>
-        ) : null}
-      </SignedIn>
+      {signedIn ? (
+        <>
+          {canBuild ? <ProjectsDrawer /> : null}
+          {role === "superadmin" ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className={pathname === "/access" ? "bg-accent" : undefined}
+            >
+              <Link href="/access" aria-current={pathname === "/access" ? "page" : undefined}>
+                Access
+              </Link>
+            </Button>
+          ) : null}
+        </>
+      ) : null}
       <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
-      <SignedOut>
-        <GoogleSignInButton />
-      </SignedOut>
-      <SignedIn>
-        <UserButton />
-      </SignedIn>
+      {isLoaded && !isSignedIn ? <GoogleSignInButton /> : null}
+      {signedIn ? <UserButton /> : null}
     </header>
   );
 }
