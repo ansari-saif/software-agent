@@ -17,6 +17,20 @@
     "vitest": "^3.0.7"
   },
   "packageManager": "pnpm@9.0.0",
+  "pnpm": {
+    "overrides": {
+      "@grpc/grpc-js": ">=1.13.6",
+      "body-parser": ">=2.4.0",
+      "js-cookie": ">=3.0.7",
+      "jws": ">=3.2.3",
+      "path-to-regexp": ">=8.4.0",
+      "postcss": ">=8.5.18",
+      "protobufjs": ">=7.6.1",
+      "proxy-addr": ">=2.0.8",
+      "tar-fs": ">=2.1.4",
+      "zod": ">=4.6.6"
+    }
+  },
   "engines": {
     "node": ">=20"
   }

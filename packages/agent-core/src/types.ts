@@ -77,7 +77,7 @@ export interface ToolJsonSchema {
 export interface ToolDefinition<TInput = unknown> {
   name: string;
   description: string;
-  inputSchema: z.ZodType<TInput, z.ZodTypeDef, unknown>;
+  inputSchema: z.ZodType<TInput, unknown>;
   jsonSchema: ToolJsonSchema;
   policy?: (input: TInput) => { allowed: boolean; reason?: string };
   handler: (ctx: ToolContext, input: TInput) => Promise<string>;

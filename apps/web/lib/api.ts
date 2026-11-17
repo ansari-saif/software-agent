@@ -1,5 +1,5 @@
 import { ApiErrorEnvelopeSchema, type ApiErrorCode } from "@repo/contracts";
-import type { ZodType, ZodTypeDef } from "zod";
+import type { ZodType } from "zod";
 import { API_V1_URL } from "@/lib/env";
 
 export type ClientErrorCode = ApiErrorCode | "NETWORK_ERROR" | "INVALID_RESPONSE";
@@ -90,7 +90,7 @@ export type TokenGetter = () => Promise<string | null>;
 export interface RequestOptions<T> {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
-  schema?: ZodType<T, ZodTypeDef, unknown>;
+  schema?: ZodType<T, unknown>;
   idempotencyKey?: string;
   signal?: AbortSignal;
 }

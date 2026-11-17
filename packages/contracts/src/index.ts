@@ -32,7 +32,7 @@ export const ToolUseBlockSchema = z.object({
   type: z.literal("tool_use"),
   id: z.string().min(1),
   name: z.string().min(1),
-  input: z.record(z.unknown()),
+  input: z.record(z.string(), z.unknown()),
 });
 export type ToolUseBlock = z.infer<typeof ToolUseBlockSchema>;
 
@@ -274,7 +274,7 @@ export const RunEventSchema = z.object({
   runId: z.string().uuid(),
   seq: z.number().int().nonnegative(),
   type: RunEventTypeSchema,
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
   createdAt: z.string(),
 });
 export type RunEvent = z.infer<typeof RunEventSchema>;
