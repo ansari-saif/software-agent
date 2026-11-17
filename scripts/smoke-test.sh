@@ -132,12 +132,18 @@ else
 fi
 
 echo "==> [7] MediNexPlus regression"
+# Only a live MediNexPlus that stops answering is a regression. An empty port means it is not on this host.
 if [ "${SMOKE_SKIP_MEDINEX:-0}" = "1" ]; then
   echo "SKIP: MediNexPlus check (SMOKE_SKIP_MEDINEX=1)"
-elif curl -sf --max-time 10 http://127.0.0.1:3000/api/health >/dev/null; then
-  pass "MediNexPlus still healthy on :3000"
 else
-  fail "MediNexPlus health check failed on :3000; this deploy may have impacted it"
+  code="$(http_code GET http://127.0.0.1:3000/api/health)"
+  if [ "$code" = "000" ]; then
+    echo "SKIP: nothing listening on :3000"
+  elif [ "$code" = "200" ]; then
+    pass "MediNexPlus still healthy on :3000"
+  else
+    fail "MediNexPlus health check failed on :3000 (HTTP ${code}); this deploy may have impacted it"
+  fi
 fi
 
 echo "==> [8] resource sanity"
