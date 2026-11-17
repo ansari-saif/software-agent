@@ -1,5 +1,4 @@
 import { ClerkProvider } from "@clerk/nextjs";
-import { dark } from "@clerk/themes";
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { Providers } from "@/components/Providers";
@@ -33,21 +32,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ClerkProvider
-      publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      afterSignOutUrl="/"
-      appearance={{
-        baseTheme: dark,
-        variables: {
-          colorPrimary: "hsl(78 85% 60%)",
-          colorTextOnPrimaryBackground: "hsl(220 30% 6%)",
-          colorBackground: "hsl(220 13% 9%)",
-          colorInputBackground: "hsl(220 13% 8%)",
-          fontFamily: "var(--font-sans)",
-          borderRadius: "0.625rem",
-        },
-      }}
-    >
+    <ClerkProvider publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY} afterSignOutUrl="/">
       <html
         lang="en"
         className={`dark ${sans.variable} ${mono.variable}`}

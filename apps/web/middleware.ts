@@ -42,7 +42,7 @@ function buildCsp(): string {
     "worker-src": ["'self'", "blob:"],
     "object-src": ["'none'"],
     "base-uri": ["'self'"],
-    "form-action": ["'self'"],
+    "form-action": ["'self'", ...clerk, "https://accounts.google.com"],
     "frame-ancestors": ["'none'"],
   };
 
